@@ -60,9 +60,12 @@ func Extract(rows *sql.Rows) (*Rows, error) {
 
 			res := fmt.Sprintf("%s", *k)
 			switch types[index].DatabaseTypeName() {
-			case "INT", "TINYINT", "BIGINT", "MEDIUMINT", "SMALLINT", "DECIMAL":
+			case "INT", "TINYINT", "BIGINT", "MEDIUMINT", "SMALLINT":
 				intRes, _ := strconv.Atoi(res)
 				return intRes
+			case "DECIMAL":
+				floatRes, _ := strconv.ParseFloat(res, 64)
+				return floatRes
 			case "BIT":
 				return (*k).([]uint8)[0]
 			default:
