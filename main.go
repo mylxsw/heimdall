@@ -167,6 +167,17 @@ func renderTable(writer io.Writer, colNames []string, kvs []map[string]interface
 	case "csv":
 		t.RenderCSV()
 	default:
+		row := table.Row{}
+		if len(colNames) > 1 {
+			row = append(row, "Total")
+			for i := 0; i < len(colNames)-1; i++ {
+				row = append(row, len(kvs))
+			}
+		} else {
+			row = append(row, fmt.Sprintf("Total %d", len(kvs)))
+		}
+
+		t.AppendFooter(row, table.RowConfig{AutoMerge: true})
 		t.Render()
 	}
 }
