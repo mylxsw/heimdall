@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/mylxsw/go-utils/array"
-	"github.com/xuri/excelize/v2"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/mylxsw/go-utils/array"
+	"github.com/xuri/excelize/v2"
 
 	"github.com/facebook/ent/dialect/sql"
 	_ "github.com/go-sql-driver/mysql"
@@ -43,7 +44,7 @@ func main() {
 	flag.StringVar(&mysqlUser, "user", "root", "MySQL User")
 	flag.IntVar(&mysqlPort, "port", 3306, "MySQL Port")
 	flag.StringVar(&sqlStr, "sql", "", "The SQL to be executed, if not specified, read from the standard input pipe")
-	flag.StringVar(&format, "format", "json", "Output format: json/yaml/plain/table/csv/html/markdown/xlsx")
+	flag.StringVar(&format, "format", "table", "Output format: json/yaml/plain/table/csv/html/markdown/xlsx")
 	flag.StringVar(&output, "output", "", "Write output to a file, default write to stdout")
 	flag.BoolVar(&outputVersion, "version", false, "Output version information")
 

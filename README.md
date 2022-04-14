@@ -6,11 +6,11 @@ MySQL-Querier is a small tool used to execute SQL query statements in MySQL and 
 -db string
     MySQL Database
 -format string
-    Output format: json/yaml/plain/table/csv/html/markdown/xlsx (default "json")
+    Output format: json/yaml/plain/table/csv/html/markdown/xlsx (default "table")
 -host string
     MySQL Host (default "127.0.0.1")
 -output string
-    Write output to a file
+    Write output to a file, default write to stdout
 -password string
     MySQL Password
 -port int
