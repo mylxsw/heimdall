@@ -3,6 +3,7 @@ package extracter
 import (
 	"database/sql"
 	"fmt"
+	"github.com/mylxsw/go-utils/array"
 	"reflect"
 	"strconv"
 
@@ -29,25 +30,20 @@ func Extract(rows *sql.Rows) (*Rows, error) {
 		return nil, err
 	}
 
-	var columns []Column
-	if err := coll.MustNew(types).Map(func(t *sql.ColumnType) Column {
+	columns := array.Map(types, func(t *sql.ColumnType) Column {
 		return Column{
 			Name:     t.Name(),
 			Type:     t.DatabaseTypeName(),
 			ScanType: t.ScanType(),
 		}
-	}).All(&columns); err != nil {
-		return nil, err
-	}
+	})
 
 	dataSets := make([][]interface{}, 0)
-
 	for rows.Next() {
-		var data = coll.MustNew(types).
-			Map(func(t *sql.ColumnType) interface{} {
-				var tt interface{}
-				return &tt
-			}).Items().([]interface{})
+		var data = array.Map(types, func(item *sql.ColumnType) interface{} {
+			var tt interface{}
+			return &tt
+		})
 
 		if err := rows.Scan(data...); err != nil {
 			return nil, err

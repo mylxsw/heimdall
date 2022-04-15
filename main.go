@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
@@ -24,9 +25,9 @@ import (
 )
 
 var (
-	// Git 版本
+	// GitCommit Git 版本
 	GitCommit string
-	// 应用版本
+	// Version 应用版本
 	Version string
 )
 var outputVersion bool
@@ -35,6 +36,7 @@ var mysqlHost, mysqlUser, mysqlPassword, mysqlDB string
 var mysqlPort int
 var sqlStr string
 var format, output string
+var queryTimeout time.Duration
 
 func main() {
 
@@ -43,10 +45,11 @@ func main() {
 	flag.StringVar(&mysqlPassword, "password", "", "MySQL Password")
 	flag.StringVar(&mysqlUser, "user", "root", "MySQL User")
 	flag.IntVar(&mysqlPort, "port", 3306, "MySQL Port")
-	flag.StringVar(&sqlStr, "sql", "", "The SQL to be executed, if not specified, read from the standard input pipe")
-	flag.StringVar(&format, "format", "table", "Output format: json/yaml/plain/table/csv/html/markdown/xlsx")
-	flag.StringVar(&output, "output", "", "Write output to a file, default write to stdout")
-	flag.BoolVar(&outputVersion, "version", false, "Output version information")
+	flag.StringVar(&sqlStr, "sql", "", "the SQL to be executed, if not specified, read from the standard input pipe")
+	flag.StringVar(&format, "format", "table", "output format: json/yaml/plain/table/csv/html/markdown/xlsx/xml")
+	flag.StringVar(&output, "output", "", "write output to a file, default write to stdout")
+	flag.BoolVar(&outputVersion, "version", false, "output version information")
+	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "query timeout")
 
 	flag.Parse()
 
@@ -64,7 +67,7 @@ func main() {
 		sqlStr = readStdin()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, sqlStr)
@@ -126,6 +129,10 @@ func main() {
 		}
 
 		_ = exf.Write(writer)
+	case "xml":
+		if err := printXML(writer, kvs); err != nil {
+			panic(err)
+		}
 	default:
 		for _, kv := range kvs {
 			lines := make([]string, 0)
@@ -189,6 +196,46 @@ func printYAML(w io.Writer, data interface{}) error {
 	}
 
 	_, err = fmt.Fprint(w, string(marshalData))
+	return err
+}
+
+type XMLField struct {
+	XMLName xml.Name    `xml:"field"`
+	Name    string      `xml:"name,attr"`
+	Value   interface{} `xml:",chardata"`
+}
+
+type XMLRow struct {
+	XMLName xml.Name `xml:"row"`
+	Value   []XMLField
+}
+
+type XMLResultSet struct {
+	XMLName xml.Name `xml:"resultset"`
+	Value   []XMLRow
+}
+
+func printXML(w io.Writer, data []map[string]interface{}) error {
+	result := XMLResultSet{
+		Value: array.Map(data, func(item map[string]interface{}) XMLRow {
+			row := XMLRow{Value: make([]XMLField, 0)}
+			for k, v := range item {
+				row.Value = append(row.Value, XMLField{
+					Name:  k,
+					Value: v,
+				})
+			}
+
+			return row
+		}),
+	}
+
+	marshalData, err := xml.MarshalIndent(result, "  ", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprint(w, xml.Header+string(marshalData))
 	return err
 }
 
