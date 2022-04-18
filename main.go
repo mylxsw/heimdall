@@ -130,7 +130,7 @@ func main() {
 
 		_ = exf.Write(writer)
 	case "xml":
-		if err := printXML(writer, kvs); err != nil {
+		if err := printXML(writer, kvs, sqlStr); err != nil {
 			panic(err)
 		}
 	default:
@@ -211,12 +211,16 @@ type XMLRow struct {
 }
 
 type XMLResultSet struct {
-	XMLName xml.Name `xml:"resultset"`
-	Value   []XMLRow
+	XMLName   xml.Name `xml:"resultset"`
+	Statement string   `xml:"statement,attr"`
+	XMLNS     string   `xml:"xmlns:xsi,attr"`
+	Value     []XMLRow
 }
 
-func printXML(w io.Writer, data []map[string]interface{}) error {
+func printXML(w io.Writer, data []map[string]interface{}, sqlStr string) error {
 	result := XMLResultSet{
+		Statement: sqlStr,
+		XMLNS:     "http://www.w3.org/2001/XMLSchema-instance",
 		Value: array.Map(data, func(item map[string]interface{}) XMLRow {
 			row := XMLRow{Value: make([]XMLField, 0)}
 			for k, v := range item {
@@ -230,7 +234,7 @@ func printXML(w io.Writer, data []map[string]interface{}) error {
 		}),
 	}
 
-	marshalData, err := xml.MarshalIndent(result, "  ", "    ")
+	marshalData, err := xml.MarshalIndent(result, "", "    ")
 	if err != nil {
 		return err
 	}
