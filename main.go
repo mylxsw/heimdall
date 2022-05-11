@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/go-utils/str"
 	"github.com/xuri/excelize/v2"
 
 	"github.com/facebook/ent/dialect/sql"
@@ -24,9 +26,9 @@ import (
 )
 
 var (
-	// Git 版本
+	// GitCommit Git 版本
 	GitCommit string
-	// 应用版本
+	// Version 应用版本
 	Version string
 )
 var outputVersion bool
@@ -35,18 +37,22 @@ var mysqlHost, mysqlUser, mysqlPassword, mysqlDB string
 var mysqlPort int
 var sqlStr string
 var format, output string
+var queryTimeout time.Duration
+var fields string
 
 func main() {
 
-	flag.StringVar(&mysqlHost, "host", "127.0.0.1", "MySQL Host")
-	flag.StringVar(&mysqlDB, "db", "", "MySQL Database")
-	flag.StringVar(&mysqlPassword, "password", "", "MySQL Password")
-	flag.StringVar(&mysqlUser, "user", "root", "MySQL User")
-	flag.IntVar(&mysqlPort, "port", 3306, "MySQL Port")
-	flag.StringVar(&sqlStr, "sql", "", "The SQL to be executed, if not specified, read from the standard input pipe")
-	flag.StringVar(&format, "format", "table", "Output format: json/yaml/plain/table/csv/html/markdown/xlsx")
-	flag.StringVar(&output, "output", "", "Write output to a file, default write to stdout")
-	flag.BoolVar(&outputVersion, "version", false, "Output version information")
+	flag.StringVar(&mysqlHost, "host", "127.0.0.1", "MySQL 主机地址")
+	flag.StringVar(&mysqlDB, "db", "", "MySQL 数据库名")
+	flag.StringVar(&mysqlPassword, "password", "", "MySQL 密码")
+	flag.StringVar(&mysqlUser, "user", "root", "MySQL 用户")
+	flag.IntVar(&mysqlPort, "port", 3306, "MySQL 端口")
+	flag.StringVar(&sqlStr, "sql", "", "要执行的 SQL 查询语句，如果不指定则从标准输入读取")
+	flag.StringVar(&format, "format", "table", "输出格式： json/yaml/plain/table/csv/html/markdown/xlsx/xml")
+	flag.StringVar(&output, "output", "", "将输出写入到文件，默认直接输出到标准输出")
+	flag.BoolVar(&outputVersion, "version", false, "输出版本信息")
+	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "查询超时时间")
+	flag.StringVar(&fields, "fields", "", "查询字段列表，默认为全部字段，字段之间使用英文逗号分隔")
 
 	flag.Parse()
 
@@ -64,7 +70,7 @@ func main() {
 		sqlStr = readStdin()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, sqlStr)
@@ -91,6 +97,24 @@ func main() {
 	colNames := make([]string, 0)
 	for _, col := range results.Columns {
 		colNames = append(colNames, col.Name)
+	}
+
+	if len(fields) > 0 {
+		fieldNames := array.Filter(strings.Split(fields, ","), func(item string) bool { return strings.TrimSpace(item) != "" })
+		colNames = array.Filter(fieldNames, func(item string) bool {
+			return str.InIgnoreCase(item, colNames)
+		})
+
+		kvs = array.Map(kvs, func(item map[string]interface{}) map[string]interface{} {
+			res := make(map[string]interface{})
+			for k, v := range item {
+				if str.InIgnoreCase(k, fieldNames) {
+					res[k] = v
+				}
+			}
+
+			return res
+		})
 	}
 
 	writer := bytes.NewBuffer(nil)
@@ -126,6 +150,10 @@ func main() {
 		}
 
 		_ = exf.Write(writer)
+	case "xml":
+		if err := printXML(writer, kvs, sqlStr); err != nil {
+			panic(err)
+		}
 	default:
 		for _, kv := range kvs {
 			lines := make([]string, 0)
@@ -191,6 +219,50 @@ func printYAML(w io.Writer, data interface{}) error {
 	}
 
 	_, err = fmt.Fprint(w, string(marshalData))
+	return err
+}
+
+type XMLField struct {
+	XMLName xml.Name    `xml:"field"`
+	Name    string      `xml:"name,attr"`
+	Value   interface{} `xml:",chardata"`
+}
+
+type XMLRow struct {
+	XMLName xml.Name `xml:"row"`
+	Value   []XMLField
+}
+
+type XMLResultSet struct {
+	XMLName   xml.Name `xml:"resultset"`
+	Statement string   `xml:"statement,attr"`
+	XMLNS     string   `xml:"xmlns:xsi,attr"`
+	Value     []XMLRow
+}
+
+func printXML(w io.Writer, data []map[string]interface{}, sqlStr string) error {
+	result := XMLResultSet{
+		Statement: sqlStr,
+		XMLNS:     "http://www.w3.org/2001/XMLSchema-instance",
+		Value: array.Map(data, func(item map[string]interface{}) XMLRow {
+			row := XMLRow{Value: make([]XMLField, 0)}
+			for k, v := range item {
+				row.Value = append(row.Value, XMLField{
+					Name:  k,
+					Value: v,
+				})
+			}
+
+			return row
+		}),
+	}
+
+	marshalData, err := xml.MarshalIndent(result, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprint(w, xml.Header+string(marshalData))
 	return err
 }
 
