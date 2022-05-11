@@ -3,9 +3,10 @@ package extracter
 import (
 	"database/sql"
 	"fmt"
-	"github.com/mylxsw/go-utils/array"
 	"reflect"
 	"strconv"
+
+	"github.com/mylxsw/go-utils/array"
 
 	"github.com/mylxsw/coll"
 )
@@ -21,6 +22,23 @@ type Column struct {
 type Rows struct {
 	Columns  []Column        `json:"columns"`
 	DataSets [][]interface{} `json:"data_sets"`
+}
+
+func (rows *Rows) SplitColumnAndKVs() (columnNames []string, kvs []map[string]interface{}) {
+	for _, row := range rows.DataSets {
+		rowData := make(map[string]interface{})
+		for i, col := range row {
+			rowData[rows.Columns[i].Name] = col
+		}
+
+		kvs = append(kvs, rowData)
+	}
+
+	columnNames = array.Map(rows.Columns, func(col Column) string {
+		return col.Name
+	})
+
+	return
 }
 
 // Extract export sql rows to Rows object
