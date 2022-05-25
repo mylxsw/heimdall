@@ -14,6 +14,8 @@ func Query(mysqlConnStr string, sqlStr string, queryTimeout time.Duration) (*ext
 		return nil, err
 	}
 
+	defer db.Close()
+
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
