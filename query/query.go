@@ -16,13 +16,18 @@ func Query(mysqlConnStr string, sqlStr string, queryTimeout time.Duration) (*ext
 
 	defer db.Close()
 
+	return QueryDB(db, sqlStr, queryTimeout)
+}
+
+func QueryDB(db *sql.DB, sqlStr string, queryTimeout time.Duration) (*extracter.Rows, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, sqlStr)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+
 	defer rows.Close()
 
 	return extracter.Extract(rows)
