@@ -33,6 +33,8 @@ github.com/mylxsw/go-toolkit v0.0.0-20210324033045-3caf8156335e h1:al0rFBDkemodR
 github.com/mylxsw/go-toolkit v0.0.0-20210324033045-3caf8156335e/go.mod h1:aJAUawotu1IMtEPXInIm6qwiAEIMSGRAMH6otakYCWw=
 github.com/mylxsw/go-utils v0.0.0-20220511065714-bb329ba47ddd h1:4TK9+xPWhSnAtaKvout4AN4MHcMt1jEOCwG2nMh11ws=
 github.com/mylxsw/go-utils v0.0.0-20220511065714-bb329ba47ddd/go.mod h1:GIywna5jA7dodjmre1qXJYLpKg1x6N/foN6BSqc9jgs=
+github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1 h1:amxSsrhevoE3pIl2X4Z8ehmfO+gCBWXB33ovXbFkfMk=
+github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1/go.mod h1:GIywna5jA7dodjmre1qXJYLpKg1x6N/foN6BSqc9jgs=
 github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

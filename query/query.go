@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/mysql-querier/extracter"
 )
 
@@ -31,4 +32,16 @@ func QueryDB(db *sql.DB, sqlStr string, queryTimeout time.Duration) (*extracter.
 	defer rows.Close()
 
 	return extracter.Extract(rows)
+}
+
+func StreamQueryDB(db *sql.DB, sqlStr string) ([]string, <-chan map[string]interface{}, error) {
+	rows, err := db.Query(sqlStr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cols, stream, err := extracter.ExtractStream(rows)
+
+	colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
+	return colNames, stream, err
 }

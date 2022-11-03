@@ -7,7 +7,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.3.0
 	github.com/mylxsw/coll v0.0.0-20200612040853-4275264442f9
 	github.com/mylxsw/go-toolkit v0.0.0-20210324033045-3caf8156335e
-	github.com/mylxsw/go-utils v0.0.0-20220511065714-bb329ba47ddd
+	github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1
 	github.com/xuri/excelize/v2 v2.6.0
 )
 

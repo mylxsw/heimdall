@@ -20,35 +20,24 @@ type Column struct {
 
 // Rows sql rows object
 type Rows struct {
-	Columns  []Column        `json:"columns"`
-	DataSets [][]interface{} `json:"data_sets"`
+	Columns  []Column                 `json:"columns"`
+	DataSets []map[string]interface{} `json:"data_sets"`
 }
 
 func (rows *Rows) SplitColumnAndKVs() (columnNames []string, kvs []map[string]interface{}) {
-	for _, row := range rows.DataSets {
-		rowData := make(map[string]interface{})
-		for i, col := range row {
-			rowData[rows.Columns[i].Name] = col
-		}
-
-		kvs = append(kvs, rowData)
-	}
-
-	columnNames = array.Map(rows.Columns, func(col Column) string {
+	return array.Map(rows.Columns, func(col Column) string {
 		return col.Name
-	})
-
-	return
+	}), rows.DataSets
 }
 
-// Extract export sql rows to Rows object
-func Extract(rows *sql.Rows) (*Rows, error) {
+// Extract export sql rows to Rows object one by one
+func ExtractStream(rows *sql.Rows) ([]Column, <-chan map[string]interface{}, error) {
 	types, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	columns := array.Map(types, func(t *sql.ColumnType) Column {
+	columnNames := array.Map(types, func(t *sql.ColumnType) Column {
 		return Column{
 			Name:     t.Name(),
 			Type:     t.DatabaseTypeName(),
@@ -56,43 +45,65 @@ func Extract(rows *sql.Rows) (*Rows, error) {
 		}
 	})
 
-	dataSets := make([][]interface{}, 0)
-	for rows.Next() {
-		var data = array.Map(types, func(item *sql.ColumnType) interface{} {
-			var tt interface{}
-			return &tt
-		})
+	dataSetChan := make(chan map[string]interface{})
+	go func() {
+		defer close(dataSetChan)
 
-		if err := rows.Scan(data...); err != nil {
-			return nil, err
+		for rows.Next() {
+			var data = array.Map(types, func(item *sql.ColumnType) interface{} {
+				var tt interface{}
+				return &tt
+			})
+
+			if err := rows.Scan(data...); err != nil {
+				panic(err)
+			}
+
+			rowRaw := coll.MustNew(data).Map(func(k *interface{}, index int) interface{} {
+				if k == nil || *k == nil {
+					return nil
+				}
+
+				res := fmt.Sprintf("%s", *k)
+				switch types[index].DatabaseTypeName() {
+				case "INT", "TINYINT", "BIGINT", "MEDIUMINT", "SMALLINT":
+					intRes, _ := strconv.Atoi(res)
+					return intRes
+				case "DECIMAL":
+					floatRes, _ := strconv.ParseFloat(res, 64)
+					return floatRes
+				case "BIT":
+					return (*k).([]uint8)[0]
+				default:
+				}
+
+				return res
+			}).Items().([]interface{})
+
+			rowData := make(map[string]interface{}, 0)
+			for i, col := range columnNames {
+				rowData[col.Name] = rowRaw[i]
+			}
+
+			dataSetChan <- rowData
 		}
+	}()
 
-		dataSets = append(dataSets, coll.MustNew(data).Map(func(k *interface{}, index int) interface{} {
-			if k == nil || *k == nil {
-				return nil
-			}
+	return columnNames, dataSetChan, nil
+}
 
-			res := fmt.Sprintf("%s", *k)
-			switch types[index].DatabaseTypeName() {
-			case "INT", "TINYINT", "BIGINT", "MEDIUMINT", "SMALLINT":
-				intRes, _ := strconv.Atoi(res)
-				return intRes
-			case "DECIMAL":
-				floatRes, _ := strconv.ParseFloat(res, 64)
-				return floatRes
-			case "BIT":
-				return (*k).([]uint8)[0]
-			default:
-			}
-
-			return res
-		}).Items().([]interface{}))
+// Extract export sql rows to Rows object
+func Extract(rows *sql.Rows) (*Rows, error) {
+	columnNames, dataSetChan, err := ExtractStream(rows)
+	if err != nil {
+		return nil, err
 	}
 
-	res := Rows{
-		Columns:  columns,
-		DataSets: dataSets,
+	dataSets := make([]map[string]interface{}, 0)
+	for row := range dataSetChan {
+		dataSets = append(dataSets, row)
 	}
 
+	res := Rows{Columns: columnNames, DataSets: dataSets}
 	return &res, nil
 }
