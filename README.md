@@ -19,6 +19,8 @@ MySQL-Querier is a small tool used to execute SQL query statements in MySQL and 
       MySQL 端口 (default 3306)
 -sql string
       要执行的 SQL 查询语句，如果不指定则从标准输入读取
+-stream
+    	是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain
 -timeout duration
       查询超时时间 (default 10s)
 -user string
