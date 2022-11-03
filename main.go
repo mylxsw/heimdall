@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -48,7 +47,7 @@ func main() {
 	flag.StringVar(&format, "format", "csv", "输出格式： json/yaml/plain/table/csv/html/markdown/xlsx/xml")
 	flag.StringVar(&output, "output", "", "将输出写入到文件，默认直接输出到标准输出")
 	flag.BoolVar(&outputVersion, "version", false, "输出版本信息")
-	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "查询超时时间")
+	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "查询超时时间，当指定 stream 选项时，该选项无效")
 	flag.StringVar(&fields, "fields", "", "查询字段列表，默认为全部字段，字段之间使用英文逗号分隔")
 	flag.BoolVar(&streamOutput, "stream", false, "是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain")
 	flag.BoolVar(&noHeader, "no-header", false, "不输出表头")
@@ -131,7 +130,7 @@ func queryAndOutput() {
 
 	writer := render.Render(format, noHeader, colNames, kvs, sqlStr)
 	if output != "" {
-		if err := ioutil.WriteFile(output, writer.Bytes(), os.ModePerm); err != nil {
+		if err := os.WriteFile(output, writer.Bytes(), os.ModePerm); err != nil {
 			panic(err)
 		}
 	} else {

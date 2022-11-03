@@ -1,6 +1,6 @@
 # mysql-querier
 
-MySQL-Querier is a small tool used to execute SQL query statements in MySQL and output the returned results in JSON/YAML/Markdown/CSV/XLSX/HTML/text lines
+MySQL-Querier 是一款专为 MySQL 设计的数据库查询导出工具，使用它可以将 SQL 的查询结果导出为多种文件格式，目前支持 JSON/YAML/Markdown/CSV/XLSX/HTML/text 等。
 
 ```bash
 -db string
@@ -27,4 +27,14 @@ MySQL-Querier is a small tool used to execute SQL query statements in MySQL and 
       MySQL 用户 (default "root")
 -version
       输出版本信息
+```
+
+使用示例
+
+```bash
+# 导出近 30 天新增的企业到 Excel 文件
+mysql-querier -db example -host 127.0.0.1 -user root -password root \
+      -sql "SELECT id, name AS '企业名称', address AS '企业地址', city_name AS '城市', district_name AS '区县', DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS '创建时间' FROM enterprise WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY id DESC" \
+      -format csv \
+      -output 最近30天新增企业列表.csv
 ```
