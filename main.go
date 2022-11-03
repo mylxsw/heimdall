@@ -35,7 +35,7 @@ var sqlStr string
 var format, output string
 var queryTimeout time.Duration
 var fields string
-var streamOutput bool
+var streamOutput, noHeader bool
 
 func main() {
 
@@ -51,6 +51,7 @@ func main() {
 	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "查询超时时间")
 	flag.StringVar(&fields, "fields", "", "查询字段列表，默认为全部字段，字段之间使用英文逗号分隔")
 	flag.BoolVar(&streamOutput, "stream", false, "是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain")
+	flag.BoolVar(&noHeader, "no-header", false, "不输出表头")
 
 	flag.Parse()
 
@@ -100,7 +101,7 @@ func streamQueryAndOutput() {
 	})
 	defer f.Close()
 
-	must.NoError(render.StreamRender(f, format, colNames, stream))
+	must.NoError(render.StreamRender(f, format, noHeader, colNames, stream))
 }
 
 func queryAndOutput() {
@@ -128,7 +129,7 @@ func queryAndOutput() {
 		})
 	}
 
-	writer := render.Render(format, colNames, kvs, sqlStr)
+	writer := render.Render(format, noHeader, colNames, kvs, sqlStr)
 	if output != "" {
 		if err := ioutil.WriteFile(output, writer.Bytes(), os.ModePerm); err != nil {
 			panic(err)

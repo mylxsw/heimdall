@@ -8,26 +8,28 @@ import (
 	"github.com/mylxsw/go-utils/array"
 )
 
-func Table(writer io.Writer, colNames []string, kvs []map[string]interface{}) {
-	render(writer, colNames, kvs, "table")
+func Table(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+	render(writer, noHeader, colNames, kvs, "table")
 }
 
-func Markdown(writer io.Writer, colNames []string, kvs []map[string]interface{}) {
-	render(writer, colNames, kvs, "markdown")
+func Markdown(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+	render(writer, noHeader, colNames, kvs, "markdown")
 }
 
-func CSV(writer io.Writer, colNames []string, kvs []map[string]interface{}) {
-	render(writer, colNames, kvs, "csv")
+func CSV(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+	render(writer, noHeader, colNames, kvs, "csv")
 }
 
-func HTML(writer io.Writer, colNames []string, kvs []map[string]interface{}) {
-	render(writer, colNames, kvs, "html")
+func HTML(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+	render(writer, noHeader, colNames, kvs, "html")
 }
 
-func render(writer io.Writer, colNames []string, kvs []map[string]interface{}, typ string) {
+func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}, typ string) {
 	t := table.NewWriter()
 	t.SetOutputMirror(writer)
-	t.AppendHeader(array.Map(colNames, func(name string) interface{} { return name }))
+	if !noHeader {
+		t.AppendHeader(array.Map(colNames, func(name string) interface{} { return name }))
+	}
 	t.AppendRows(array.Map(kvs, func(kv map[string]interface{}) table.Row {
 		row := table.Row{}
 		for _, colName := range colNames {

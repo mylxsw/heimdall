@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/mylxsw/go-utils/must"
+	"github.com/mylxsw/go-utils/ternary"
 )
 
-func StreamRender(w io.Writer, format string, colNames []string, stream <-chan map[string]interface{}) error {
+func StreamRender(w io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
 	switch format {
 	case "json":
 		for item := range stream {
@@ -22,7 +23,10 @@ func StreamRender(w io.Writer, format string, colNames []string, stream <-chan m
 		csvWriter := csv.NewWriter(w)
 		defer csvWriter.Flush()
 
-		must.NoError(csvWriter.Write(colNames))
+		if !noHeader {
+			must.NoError(csvWriter.Write(colNames))
+		}
+
 		for item := range stream {
 			line := make([]string, 0)
 			for _, colName := range colNames {
@@ -35,7 +39,14 @@ func StreamRender(w io.Writer, format string, colNames []string, stream <-chan m
 		for item := range stream {
 			lines := make([]string, 0)
 			for _, colName := range colNames {
-				lines = append(lines, strings.ReplaceAll(fmt.Sprintf("%s=%v", colName, item[colName]), "\n", "\\n"))
+				lines = append(
+					lines,
+					strings.ReplaceAll(ternary.IfLazy(
+						noHeader,
+						func() string { return fmt.Sprintf("%v", item[colName]) },
+						func() string { return fmt.Sprintf("%s=%v", colName, item[colName]) },
+					), "\n", "\\n"),
+				)
 			}
 
 			must.Must(w.Write([]byte(fmt.Sprintln(strings.Join(lines, ", ")))))
@@ -45,7 +56,7 @@ func StreamRender(w io.Writer, format string, colNames []string, stream <-chan m
 	return nil
 }
 
-func Render(format string, colNames []string, kvs []map[string]interface{}, sqlStr string) *bytes.Buffer {
+func Render(format string, noHeader bool, colNames []string, kvs []map[string]interface{}, sqlStr string) *bytes.Buffer {
 	writer := bytes.NewBuffer(nil)
 
 	switch format {
@@ -54,22 +65,26 @@ func Render(format string, colNames []string, kvs []map[string]interface{}, sqlS
 	case "yaml":
 		YAML(writer, kvs)
 	case "table":
-		Table(writer, colNames, kvs)
+		Table(writer, noHeader, colNames, kvs)
 	case "markdown":
-		Markdown(writer, colNames, kvs)
+		Markdown(writer, noHeader, colNames, kvs)
 	case "csv":
-		CSV(writer, colNames, kvs)
+		CSV(writer, noHeader, colNames, kvs)
 	case "html":
-		HTML(writer, colNames, kvs)
+		HTML(writer, noHeader, colNames, kvs)
 	case "xlsx":
-		XLSX(writer, colNames, kvs)
+		XLSX(writer, noHeader, colNames, kvs)
 	case "xml":
 		XML(writer, colNames, kvs, sqlStr)
 	default:
 		for _, kv := range kvs {
 			lines := make([]string, 0)
 			for _, colName := range colNames {
-				lines = append(lines, strings.ReplaceAll(fmt.Sprintf("%s=%v", colName, kv[colName]), "\n", "\\n"))
+				lines = append(lines, strings.ReplaceAll(ternary.IfLazy(
+					noHeader,
+					func() string { return fmt.Sprintf("%v", kv[colName]) },
+					func() string { return fmt.Sprintf("%s=%v", colName, kv[colName]) },
+				), "\n", "\\n"))
 			}
 
 			writer.Write([]byte(fmt.Sprintln(strings.Join(lines, ", "))))
