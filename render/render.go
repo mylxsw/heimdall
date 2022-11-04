@@ -6,13 +6,40 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
 )
 
-func StreamRender(w io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
+type Writer interface {
+	Write(data []string) error
+	Close() error
+}
+
+func StreamRender(output string, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
+	if format == "xlsx" {
+		return streamRenderXlsx(output, noHeader, colNames, stream)
+	}
+
+	return streamRender(output, format, stream, noHeader, colNames)
+}
+
+func streamRender(output string, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string) error {
+	w := ternary.IfElseLazy(output != "", func() io.WriteCloser {
+		f := must.Must(os.Create(output))
+		// 写入 BOM 表头
+		if format == "csv" {
+			must.Must(f.WriteString("\xEF\xBB\xBF"))
+		}
+
+		return f
+	}, func() io.WriteCloser {
+		return os.Stdout
+	})
+	defer w.Close()
+
 	switch format {
 	case "json":
 		for item := range stream {
@@ -30,7 +57,7 @@ func StreamRender(w io.Writer, format string, noHeader bool, colNames []string, 
 		for item := range stream {
 			line := make([]string, 0)
 			for _, colName := range colNames {
-				line = append(line, fmt.Sprintf("%v", item[colName]))
+				line = append(line, resolveValue(item[colName]))
 			}
 
 			must.NoError(csvWriter.Write(line))
@@ -43,8 +70,8 @@ func StreamRender(w io.Writer, format string, noHeader bool, colNames []string, 
 					lines,
 					strings.ReplaceAll(ternary.IfLazy(
 						noHeader,
-						func() string { return fmt.Sprintf("%v", item[colName]) },
-						func() string { return fmt.Sprintf("%s=%v", colName, item[colName]) },
+						func() string { return resolveValue(item[colName]) },
+						func() string { return fmt.Sprintf("%s=%v", colName, resolveValue(item[colName])) },
 					), "\n", "\\n"),
 				)
 			}
@@ -54,6 +81,34 @@ func StreamRender(w io.Writer, format string, noHeader bool, colNames []string, 
 	}
 
 	return nil
+}
+
+func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
+	if output == "" {
+		panic("xlsx format must specify output file")
+	}
+
+	w := must.Must(NewExcelWriter(output, ternary.If(noHeader, []string{}, colNames)))
+	defer w.Close()
+
+	for item := range stream {
+		line := make([]string, 0)
+		for _, colName := range colNames {
+			line = append(line, resolveValue(item[colName]))
+		}
+
+		must.NoError(w.Write(line))
+	}
+
+	return nil
+}
+
+func resolveValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	return fmt.Sprintf("%v", value)
 }
 
 func Render(format string, noHeader bool, colNames []string, kvs []map[string]interface{}, sqlStr string) *bytes.Buffer {
@@ -82,8 +137,8 @@ func Render(format string, noHeader bool, colNames []string, kvs []map[string]in
 			for _, colName := range colNames {
 				lines = append(lines, strings.ReplaceAll(ternary.IfLazy(
 					noHeader,
-					func() string { return fmt.Sprintf("%v", kv[colName]) },
-					func() string { return fmt.Sprintf("%s=%v", colName, kv[colName]) },
+					func() string { return resolveValue(kv[colName]) },
+					func() string { return fmt.Sprintf("%s=%v", colName, resolveValue(kv[colName])) },
 				), "\n", "\\n"))
 			}
 

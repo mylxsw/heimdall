@@ -13,7 +13,6 @@ import (
 	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/str"
-	"github.com/mylxsw/go-utils/ternary"
 	"github.com/mylxsw/mysql-querier/query"
 	"github.com/mylxsw/mysql-querier/render"
 
@@ -71,8 +70,8 @@ func main() {
 }
 
 func streamQueryAndOutput() {
-	if !array.In(format, []string{"csv", "json", "plain"}) {
-		panic(fmt.Sprintf("stream output only support csv/json/plain format, current format is %s", format))
+	if !array.In(format, []string{"csv", "json", "plain", "xlsx"}) {
+		panic(fmt.Sprintf("stream output only support csv/json/plain/xlsx format, current format is %s", format))
 	}
 
 	db := must.Must(sql.Open("mysql", query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort)))
@@ -87,20 +86,7 @@ func streamQueryAndOutput() {
 		})
 	}
 
-	f := ternary.IfElseLazy(output != "", func() io.WriteCloser {
-		f := must.Must(os.Create(output))
-		if format == "csv" {
-			// 写入 BOM 表头
-			must.Must(f.WriteString("\xEF\xBB\xBF"))
-		}
-
-		return f
-	}, func() io.WriteCloser {
-		return os.Stdout
-	})
-	defer f.Close()
-
-	must.NoError(render.StreamRender(f, format, noHeader, colNames, stream))
+	must.NoError(render.StreamRender(output, format, noHeader, colNames, stream))
 }
 
 func queryAndOutput() {
