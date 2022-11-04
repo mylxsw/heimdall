@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mylxsw/asteria/level"
+	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/str"
@@ -34,6 +36,7 @@ var format, output string
 var queryTimeout time.Duration
 var fields string
 var streamOutput, noHeader bool
+var debug bool
 
 func main() {
 
@@ -50,8 +53,13 @@ func main() {
 	flag.StringVar(&fields, "fields", "", "查询字段列表，默认为全部字段，字段之间使用英文逗号分隔")
 	flag.BoolVar(&streamOutput, "stream", false, "是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain")
 	flag.BoolVar(&noHeader, "no-header", false, "不输出表头")
+	flag.BoolVar(&debug, "debug", false, "是否开启调试模式")
 
 	flag.Parse()
+
+	if !debug {
+		log.All().LogLevel(level.Info)
+	}
 
 	if outputVersion {
 		fmt.Printf("Version=%s, GitCommit=%s\n", Version, GitCommit)
@@ -90,6 +98,8 @@ func streamQueryAndOutput() {
 }
 
 func queryAndOutput() {
+	startTime := time.Now()
+
 	colNames, kvs := must.Must(query.Query(
 		query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort),
 		sqlStr,
@@ -119,6 +129,8 @@ func queryAndOutput() {
 		if err := os.WriteFile(output, writer.Bytes(), os.ModePerm); err != nil {
 			panic(err)
 		}
+
+		log.Debugf("write to %s, total %d records, %s elapsed", output, len(kvs), time.Since(startTime))
 	} else {
 		_, _ = writer.WriteTo(os.Stdout)
 	}

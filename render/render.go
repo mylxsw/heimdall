@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
 )
@@ -27,6 +29,7 @@ func StreamRender(output string, format string, noHeader bool, colNames []string
 }
 
 func streamRender(output string, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string) error {
+	startTime := time.Now()
 	w := ternary.IfElseLazy(output != "", func() io.WriteCloser {
 		f := must.Must(os.Create(output))
 		// 写入 BOM 表头
@@ -40,9 +43,11 @@ func streamRender(output string, format string, stream <-chan map[string]interfa
 	})
 	defer w.Close()
 
+	var total int
 	switch format {
 	case "json":
 		for item := range stream {
+			total++
 			must.Must(w.Write(must.Must(json.Marshal(item))))
 			must.Must(w.Write([]byte("\n")))
 		}
@@ -55,6 +60,7 @@ func streamRender(output string, format string, stream <-chan map[string]interfa
 		}
 
 		for item := range stream {
+			total++
 			line := make([]string, 0)
 			for _, colName := range colNames {
 				line = append(line, resolveValue(item[colName]))
@@ -64,6 +70,7 @@ func streamRender(output string, format string, stream <-chan map[string]interfa
 		}
 	default:
 		for item := range stream {
+			total++
 			lines := make([]string, 0)
 			for _, colName := range colNames {
 				lines = append(
@@ -80,10 +87,15 @@ func streamRender(output string, format string, stream <-chan map[string]interfa
 		}
 	}
 
+	if output != "" {
+		log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
+	}
+
 	return nil
 }
 
 func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
+	startTime := time.Now()
 	if output == "" {
 		panic("xlsx format must specify output file")
 	}
@@ -91,7 +103,9 @@ func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-
 	w := must.Must(NewExcelWriter(output, ternary.If(noHeader, []string{}, colNames)))
 	defer w.Close()
 
+	var total int
 	for item := range stream {
+		total++
 		line := make([]string, 0)
 		for _, colName := range colNames {
 			line = append(line, resolveValue(item[colName]))
@@ -99,6 +113,8 @@ func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-
 
 		must.NoError(w.Write(line))
 	}
+
+	log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
 
 	return nil
 }
