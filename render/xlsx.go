@@ -42,7 +42,7 @@ type ExcelWriter struct {
 
 // Excel 单个 Sheet 最多支持 1048576 行
 // https://support.microsoft.com/en-us/office/excel-specifications-and-limits-1672b34d-7043-467e-8e27-269d656771c3
-const maxRowNumInSheet = 1048576
+var MaxRowNumInSheet = 1048576
 
 func NewExcelWriter(filename string, headers []string) (Writer, error) {
 	f := excelize.NewFile()
@@ -62,7 +62,7 @@ func NewExcelWriter(filename string, headers []string) (Writer, error) {
 
 func (w *ExcelWriter) Write(data []string) error {
 	defer func() {
-		if w.rowNum >= maxRowNumInSheet {
+		if w.rowNum >= MaxRowNumInSheet {
 			w.rowNum = 0
 			w.stream.Flush()
 			w.sheetNum++

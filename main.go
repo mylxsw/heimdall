@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"flag"
 	"fmt"
 	"io"
@@ -13,8 +12,7 @@ import (
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/array"
-	"github.com/mylxsw/go-utils/must"
-	"github.com/mylxsw/go-utils/str"
+	"github.com/mylxsw/go-utils/ternary"
 	"github.com/mylxsw/mysql-querier/query"
 	"github.com/mylxsw/mysql-querier/render"
 
@@ -54,6 +52,7 @@ func main() {
 	flag.BoolVar(&streamOutput, "stream", false, "是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain")
 	flag.BoolVar(&noHeader, "no-header", false, "不输出表头")
 	flag.BoolVar(&debug, "debug", false, "是否开启调试模式")
+	flag.IntVar(&render.MaxRowNumInSheet, "xlsx-max-row", 1048576, "Excel 文件每个 Sheet 最大的行数，包含表头")
 
 	flag.Parse()
 
@@ -70,70 +69,16 @@ func main() {
 		sqlStr = readStdin()
 	}
 
-	if streamOutput {
-		streamQueryAndOutput()
-	} else {
-		queryAndOutput()
-	}
-}
+	allowFields := array.Filter(strings.Split(fields, ","), func(item string) bool { return strings.TrimSpace(item) != "" })
 
-func streamQueryAndOutput() {
-	if !array.In(format, []string{"csv", "json", "plain", "xlsx"}) {
-		panic(fmt.Sprintf("stream output only support csv/json/plain/xlsx format, current format is %s", format))
-	}
+	dbConnStr := query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort)
+	handler := ternary.IfLazy(
+		streamOutput,
+		func() query.QueryWriteHandler { return query.NewStreamQueryWriter(dbConnStr) },
+		func() query.QueryWriteHandler { return query.NewStandardQueryWriter(dbConnStr, queryTimeout) },
+	)
 
-	db := must.Must(sql.Open("mysql", query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort)))
-	defer db.Close()
-
-	colNames, stream := must.Must2(query.StreamQueryDB(db, sqlStr))
-
-	if len(fields) > 0 {
-		fieldNames := array.Filter(strings.Split(fields, ","), func(item string) bool { return strings.TrimSpace(item) != "" })
-		colNames = array.Filter(fieldNames, func(item string) bool {
-			return str.InIgnoreCase(item, colNames)
-		})
-	}
-
-	must.NoError(render.StreamRender(output, format, noHeader, colNames, stream))
-}
-
-func queryAndOutput() {
-	startTime := time.Now()
-
-	colNames, kvs := must.Must(query.Query(
-		query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort),
-		sqlStr,
-		queryTimeout,
-	)).SplitColumnAndKVs()
-
-	if len(fields) > 0 {
-		fieldNames := array.Filter(strings.Split(fields, ","), func(item string) bool { return strings.TrimSpace(item) != "" })
-		colNames = array.Filter(fieldNames, func(item string) bool {
-			return str.InIgnoreCase(item, colNames)
-		})
-
-		kvs = array.Map(kvs, func(item map[string]interface{}) map[string]interface{} {
-			res := make(map[string]interface{})
-			for k, v := range item {
-				if str.InIgnoreCase(k, fieldNames) {
-					res[k] = v
-				}
-			}
-
-			return res
-		})
-	}
-
-	writer := render.Render(format, noHeader, colNames, kvs, sqlStr)
-	if output != "" {
-		if err := os.WriteFile(output, writer.Bytes(), os.ModePerm); err != nil {
-			panic(err)
-		}
-
-		log.Debugf("write to %s, total %d records, %s elapsed", output, len(kvs), time.Since(startTime))
-	} else {
-		_, _ = writer.WriteTo(os.Stdout)
-	}
+	handler(sqlStr, allowFields, format, output, noHeader)
 }
 
 func readStdin() string {
