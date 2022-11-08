@@ -6,33 +6,33 @@ DB-Exporter is a database query export tool specially designed for MySQL. Using 
 
 The following command line options are supported：
 
-- `-db` string
+- `-db` 
     MySQL database name
 - `-debug`
     Enable debug mode
-- `-format` string
+- `-format` 
     Output format: json/yaml/plain/table/csv/html/markdown/xlsx/xml (default "csv")
-- `-host` string
+- `-host` 
     MySQL host (default "127.0.0.1")
 - `-no-header`
     Do not write table header
-- `-output` string
+- `-output` 
     Write output to a file, default output directly to STDOUT
-- `-password` string
+- `-password` 
     MySQL password
-- `-port` int
+- `-port` 
     MySQL port (default 3306)
-- `-sql` string
+- `-sql` 
     SQL query to execute, read from STDIN if not specified
 - `-streaming`
     Whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/json/plain
-- `-timeout` duration
+- `-timeout` 
     Query timeout, when the stream option is specified, this option is invalid (default 10s)
-- `-user` string
+- `-user` 
     MySQL username (default "root")
 - `-version`
     Output version info
-- `-xlsx-max-row` int
+- `-xlsx-max-row` 
     The maximum number of rows per sheet in an Excel file, including the row where the header is located (default 1048576)
 
 ## Examples
