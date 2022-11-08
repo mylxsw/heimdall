@@ -40,7 +40,7 @@ The following command line options are supported：
 Export new businesses in the last 30 days to an Excel file
 
 ```bash
-mysql-querier -db example -host 127.0.0.1 -user root -password root \
+db-exporter -db example -host 127.0.0.1 -user root -password root \
       -sql "SELECT id, name AS '企业名称', address AS '企业地址', city_name AS '城市', district_name AS '区县', DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS '创建时间' FROM enterprise WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY id DESC" \
       -format csv \
       -output 最近30天新增企业列表.csv
