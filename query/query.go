@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/mylxsw/db-exporter/extracter"
 	"github.com/mylxsw/go-utils/array"
-	"github.com/mylxsw/mysql-querier/extracter"
 )
 
+// Query query data from MySQL database, and return the result as a map, return all data at once
 func Query(mysqlConnStr string, sqlStr string, args []interface{}, queryTimeout time.Duration) (*extracter.Rows, error) {
 	db, err := sql.Open("mysql", mysqlConnStr)
 	if err != nil {
@@ -20,6 +21,7 @@ func Query(mysqlConnStr string, sqlStr string, args []interface{}, queryTimeout 
 	return QueryDB(db, sqlStr, args, queryTimeout)
 }
 
+// QueryDB query data from MySQL database, and return the result as a map, return all data at once
 func QueryDB(db *sql.DB, sqlStr string, args []interface{}, queryTimeout time.Duration) (*extracter.Rows, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
@@ -34,6 +36,7 @@ func QueryDB(db *sql.DB, sqlStr string, args []interface{}, queryTimeout time.Du
 	return extracter.Extract(rows)
 }
 
+// StreamQuery query data from MySQL database, and return the result one by one using channel
 func StreamQueryDB(db *sql.DB, sqlStr string, args []interface{}) ([]string, <-chan map[string]interface{}, error) {
 	rows, err := db.Query(sqlStr, args...)
 	if err != nil {

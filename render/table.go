@@ -6,6 +6,7 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/go-utils/must"
 )
 
 func Table(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
@@ -17,6 +18,8 @@ func Markdown(writer io.Writer, noHeader bool, colNames []string, kvs []map[stri
 }
 
 func CSV(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+	// Write BOM header for UTF-8
+	must.Must(writer.Write([]byte("\xEF\xBB\xBF")))
 	render(writer, noHeader, colNames, kvs, "csv")
 }
 

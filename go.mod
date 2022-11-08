@@ -1,4 +1,4 @@
-module github.com/mylxsw/mysql-querier
+module github.com/mylxsw/db-exporter
 
 go 1.18
 

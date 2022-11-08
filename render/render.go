@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
 )
@@ -20,39 +21,30 @@ type Writer interface {
 	Close() error
 }
 
-func StreamRender(output string, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
+func StreamingRender(output io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) (int, error) {
 	if format == "xlsx" {
 		return streamRenderXlsx(output, noHeader, colNames, stream)
 	}
 
-	return streamRender(output, format, stream, noHeader, colNames)
+	return streamingRender(output, format, stream, noHeader, colNames)
 }
 
-func streamRender(output string, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string) error {
-	startTime := time.Now()
-	w := ternary.IfElseLazy(output != "", func() io.WriteCloser {
-		f := must.Must(os.Create(output))
-		// 写入 BOM 表头
-		if format == "csv" {
-			must.Must(f.WriteString("\xEF\xBB\xBF"))
-		}
-
-		return f
-	}, func() io.WriteCloser {
-		return os.Stdout
-	})
-	defer w.Close()
+func streamingRender(output io.Writer, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string) (int, error) {
+	if format == "csv" {
+		// Write BOM header for UTF-8
+		must.Must(output.Write([]byte("\xEF\xBB\xBF")))
+	}
 
 	var total int
 	switch format {
 	case "json":
 		for item := range stream {
 			total++
-			must.Must(w.Write(must.Must(json.Marshal(item))))
-			must.Must(w.Write([]byte("\n")))
+			must.Must(output.Write(must.Must(json.Marshal(item))))
+			must.Must(output.Write([]byte("\n")))
 		}
 	case "csv":
-		csvWriter := csv.NewWriter(w)
+		csvWriter := csv.NewWriter(output)
 		defer csvWriter.Flush()
 
 		if !noHeader {
@@ -83,25 +75,21 @@ func streamRender(output string, format string, stream <-chan map[string]interfa
 				)
 			}
 
-			must.Must(w.Write([]byte(fmt.Sprintln(strings.Join(lines, ", ")))))
+			must.Must(output.Write([]byte(fmt.Sprintln(strings.Join(lines, ", ")))))
 		}
 	}
 
-	if output != "" {
-		log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
-	}
-
-	return nil
+	return total, nil
 }
 
-func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) error {
-	startTime := time.Now()
-	if output == "" {
-		panic("xlsx format must specify output file")
-	}
-
-	w := must.Must(NewExcelWriter(output, ternary.If(noHeader, []string{}, colNames)))
-	defer w.Close()
+func streamRenderXlsx(output io.Writer, noHeader bool, colNames []string, stream <-chan map[string]interface{}) (int, error) {
+	tmpFilename := createTempFilename() + ".xlsx"
+	w := must.Must(NewExcelWriter(tmpFilename, ternary.If(noHeader, []string{}, colNames)))
+	defer func() {
+		must.NoError(w.Close())
+		must.Must(io.Copy(output, must.Must(os.Open(tmpFilename))))
+		_ = os.Remove(tmpFilename)
+	}()
 
 	var total int
 	for item := range stream {
@@ -114,9 +102,7 @@ func streamRenderXlsx(output string, noHeader bool, colNames []string, stream <-
 		must.NoError(w.Write(line))
 	}
 
-	log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
-
-	return nil
+	return total, nil
 }
 
 func resolveValue(value interface{}) string {
@@ -163,4 +149,8 @@ func Render(format string, noHeader bool, colNames []string, kvs []map[string]in
 	}
 
 	return writer
+}
+
+func createTempFilename() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("mysql-querier-%d-%d.tmp", time.Now().UnixNano(), rand.Intn(1000000000)))
 }

@@ -1,38 +1,45 @@
-# mysql-querier
+# DB-Exporter
 
-MySQL-Querier 是一款专为 MySQL 设计的数据库查询导出工具，使用它可以将 SQL 的查询结果导出为多种文件格式，目前支持 JSON/YAML/Markdown/CSV/XLSX/HTML/text 等。
+DB-Exporter is a database query export tool specially designed for MySQL. Using it, you can directly export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text, etc.
+
+## Command Line Options
+
+The following command line options are supported：
+
+- `-db` string
+    MySQL database name
+- `-debug`
+    Enable debug mode
+- `-format` string
+    Output format: json/yaml/plain/table/csv/html/markdown/xlsx/xml (default "csv")
+- `-host` string
+    MySQL host (default "127.0.0.1")
+- `-no-header`
+    Do not write table header
+- `-output` string
+    Write output to a file, default output directly to STDOUT
+- `-password` string
+    MySQL password
+- `-port` int
+    MySQL port (default 3306)
+- `-sql` string
+    SQL query to execute, read from STDIN if not specified
+- `-streaming`
+    Whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/json/plain
+- `-timeout` duration
+    Query timeout, when the stream option is specified, this option is invalid (default 10s)
+- `-user` string
+    MySQL username (default "root")
+- `-version`
+    Output version info
+- `-xlsx-max-row` int
+    The maximum number of rows per sheet in an Excel file, including the row where the header is located (default 1048576)
+
+## Examples
+
+Export new businesses in the last 30 days to an Excel file
 
 ```bash
--db string
-      MySQL 数据库名
--fields string
-      查询字段列表，默认为全部字段，字段之间使用英文逗号分隔
--format string
-      输出格式： json/yaml/plain/table/csv/html/markdown/xlsx/xml (default "table")
--host string
-      MySQL 主机地址 (default "127.0.0.1")
--output string
-      将输出写入到文件，默认直接输出到标准输出
--password string
-      MySQL 密码
--port int
-      MySQL 端口 (default 3306)
--sql string
-      要执行的 SQL 查询语句，如果不指定则从标准输入读取
--stream
-    	是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain
--timeout duration
-      查询超时时间 (default 10s)
--user string
-      MySQL 用户 (default "root")
--version
-      输出版本信息
-```
-
-使用示例
-
-```bash
-# 导出近 30 天新增的企业到 Excel 文件
 mysql-querier -db example -host 127.0.0.1 -user root -password root \
       -sql "SELECT id, name AS '企业名称', address AS '企业地址', city_name AS '城市', district_name AS '区县', DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS '创建时间' FROM enterprise WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY id DESC" \
       -format csv \

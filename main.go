@@ -10,18 +10,17 @@ import (
 
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
+	"github.com/mylxsw/db-exporter/query"
+	"github.com/mylxsw/db-exporter/render"
+	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
-	"github.com/mylxsw/mysql-querier/query"
-	"github.com/mylxsw/mysql-querier/render"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
-	// GitCommit Git 版本
 	GitCommit string
-	// Version 应用版本
-	Version string
+	Version   string
 )
 var outputVersion bool
 
@@ -30,25 +29,25 @@ var mysqlPort int
 var sqlStr string
 var format, output string
 var queryTimeout time.Duration
-var streamOutput, noHeader bool
+var streamingOutput, noHeader bool
 var debug bool
 
 func main() {
 
-	flag.StringVar(&mysqlHost, "host", "127.0.0.1", "MySQL 主机地址")
-	flag.StringVar(&mysqlDB, "db", "", "MySQL 数据库名")
-	flag.StringVar(&mysqlPassword, "password", "", "MySQL 密码")
-	flag.StringVar(&mysqlUser, "user", "root", "MySQL 用户")
-	flag.IntVar(&mysqlPort, "port", 3306, "MySQL 端口")
-	flag.StringVar(&sqlStr, "sql", "", "要执行的 SQL 查询语句，如果不指定则从标准输入读取")
-	flag.StringVar(&format, "format", "csv", "输出格式： json/yaml/plain/table/csv/html/markdown/xlsx/xml")
-	flag.StringVar(&output, "output", "", "将输出写入到文件，默认直接输出到标准输出")
-	flag.BoolVar(&outputVersion, "version", false, "输出版本信息")
-	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "查询超时时间，当指定 stream 选项时，该选项无效")
-	flag.BoolVar(&streamOutput, "stream", false, "是否使用流式输出，如果使用流式输出，则不会等待查询完成，而是在查询过程中逐行输出，输出格式 format 只支持 csv/json/plain")
-	flag.BoolVar(&noHeader, "no-header", false, "不输出表头")
-	flag.BoolVar(&debug, "debug", false, "是否开启调试模式")
-	flag.IntVar(&render.MaxRowNumInSheet, "xlsx-max-row", 1048576, "Excel 文件每个 Sheet 最大的行数，包含表头")
+	flag.StringVar(&mysqlHost, "host", "127.0.0.1", "MySQL host")
+	flag.StringVar(&mysqlDB, "db", "", "MySQL database name")
+	flag.StringVar(&mysqlPassword, "password", "", "MySQL password")
+	flag.StringVar(&mysqlUser, "user", "root", "MySQL username")
+	flag.IntVar(&mysqlPort, "port", 3306, "MySQL port")
+	flag.StringVar(&sqlStr, "sql", "", "SQL query to execute, read from STDIN if not specified")
+	flag.StringVar(&format, "format", "csv", "Output format: json/yaml/plain/table/csv/html/markdown/xlsx/xml")
+	flag.StringVar(&output, "output", "", "Write output to a file, default output directly to STDOUT")
+	flag.BoolVar(&outputVersion, "version", false, "Output version info")
+	flag.DurationVar(&queryTimeout, "timeout", 10*time.Second, "Query timeout, when the stream option is specified, this option is invalid")
+	flag.BoolVar(&streamingOutput, "streaming", false, "Whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/json/plain")
+	flag.BoolVar(&noHeader, "no-header", false, "Do not write table header")
+	flag.BoolVar(&debug, "debug", false, "Enable debug mode")
+	flag.IntVar(&render.MaxRowNumInSheet, "xlsx-max-row", 1048576, "The maximum number of rows per sheet in an Excel file, including the row where the header is located")
 
 	flag.Parse()
 
@@ -67,12 +66,22 @@ func main() {
 
 	dbConnStr := query.BuildConnStr(mysqlDB, mysqlUser, mysqlPassword, mysqlHost, mysqlPort)
 	handler := ternary.IfLazy(
-		streamOutput,
-		func() query.QueryWriteHandler { return query.NewStreamQueryWriter(dbConnStr) },
+		streamingOutput,
+		func() query.QueryWriteHandler { return query.NewStreamingQueryWriter(dbConnStr) },
 		func() query.QueryWriteHandler { return query.NewStandardQueryWriter(dbConnStr, queryTimeout) },
 	)
 
-	handler(sqlStr, nil, format, output, noHeader)
+	w := ternary.IfElseLazy(output != "", func() io.WriteCloser {
+		return must.Must(os.Create(output))
+	}, func() io.WriteCloser {
+		return os.Stdout
+	})
+	defer w.Close()
+
+	startTime := time.Now()
+	total := handler(sqlStr, nil, format, w, noHeader)
+
+	log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
 }
 
 func readStdin() string {

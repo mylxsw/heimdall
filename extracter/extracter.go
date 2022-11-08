@@ -65,6 +65,8 @@ func ExtractStream(rows *sql.Rows) ([]Column, <-chan map[string]interface{}, err
 				}
 
 				res := fmt.Sprintf("%s", *k)
+				// TODO The conversion of all SQL types is mainly implemented here,
+				/// and only a few commonly used ones are currently implemented
 				switch types[index].DatabaseTypeName() {
 				case "INT", "TINYINT", "BIGINT", "MEDIUMINT", "SMALLINT":
 					intRes, _ := strconv.Atoi(res)
