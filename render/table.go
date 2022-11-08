@@ -6,28 +6,30 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/mylxsw/go-utils/array"
-	"github.com/mylxsw/go-utils/must"
 )
 
-func Table(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
-	render(writer, noHeader, colNames, kvs, "table")
+func Table(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, colNames, kvs, "table")
 }
 
-func Markdown(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
-	render(writer, noHeader, colNames, kvs, "markdown")
+func Markdown(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, colNames, kvs, "markdown")
 }
 
-func CSV(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+func CSV(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
 	// Write BOM header for UTF-8
-	must.Must(writer.Write([]byte("\xEF\xBB\xBF")))
-	render(writer, noHeader, colNames, kvs, "csv")
+	if _, err := writer.Write([]byte("\xEF\xBB\xBF")); err != nil {
+		return err
+	}
+
+	return render(writer, noHeader, colNames, kvs, "csv")
 }
 
-func HTML(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
-	render(writer, noHeader, colNames, kvs, "html")
+func HTML(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, colNames, kvs, "html")
 }
 
-func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}, typ string) {
+func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}, typ string) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(writer)
 	if !noHeader {
@@ -65,4 +67,6 @@ func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string
 		}
 		t.Render()
 	}
+
+	return nil
 }

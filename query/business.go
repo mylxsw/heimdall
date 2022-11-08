@@ -8,26 +8,32 @@ import (
 
 	"github.com/mylxsw/db-exporter/render"
 	"github.com/mylxsw/go-utils/array"
-	"github.com/mylxsw/go-utils/must"
 )
 
 // QueryWriteHandler is a function definition for query write handler
-type QueryWriteHandler func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) int
+type QueryWriteHandler func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error)
 
 // NewStreamingQueryWriter create a function that executes SQL in the database
 // and writes the returned results to a file in the specified format.
 // The SQL query and the writing of the results are all streamed to reduce memory usage
 func NewStreamingQueryWriter(dbConnStr string) QueryWriteHandler {
-	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) int {
+	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
 		if !array.In(format, []string{"csv", "json", "plain", "xlsx"}) {
-			panic(fmt.Sprintf("streaming only supports csv/json/plain/xlsx format, the current format is %s", format))
+			return 0, fmt.Errorf("streaming only supports csv/json/plain/xlsx format, the current format is %s", format)
 		}
 
-		db := must.Must(sql.Open("mysql", dbConnStr))
+		db, err := sql.Open("mysql", dbConnStr)
+		if err != nil {
+			return 0, err
+		}
 		defer db.Close()
 
-		colNames, stream := must.Must2(StreamQueryDB(db, sqlStr, args))
-		return must.Must(render.StreamingRender(output, format, noHeader, colNames, stream))
+		colNames, stream, err := StreamQueryDB(db, sqlStr, args)
+		if err != nil {
+			return 0, err
+		}
+
+		return render.StreamingRender(output, format, noHeader, colNames, stream)
 	}
 }
 
@@ -35,12 +41,23 @@ func NewStreamingQueryWriter(dbConnStr string) QueryWriteHandler {
 // and writes the returned results to a file in the specified format.
 // Querying and writing are done at one time, and all intermediate process data will be loaded into memory
 func NewStandardQueryWriter(dbConnStr string, queryTimeout time.Duration) QueryWriteHandler {
-	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) int {
-		colNames, kvs := must.Must(Query(dbConnStr, sqlStr, args, queryTimeout)).SplitColumnAndKVs()
+	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
+		rs, err := Query(dbConnStr, sqlStr, args, queryTimeout)
+		if err != nil {
+			return 0, err
+		}
 
-		writer := render.Render(format, noHeader, colNames, kvs, sqlStr)
-		must.Must(writer.WriteTo(output))
+		colNames, kvs := rs.SplitColumnAndKVs()
 
-		return len(kvs)
+		writer, err := render.Render(format, noHeader, colNames, kvs, sqlStr)
+		if err != nil {
+			return 0, err
+		}
+
+		if _, err := writer.WriteTo(output); err != nil {
+			return 0, err
+		}
+
+		return len(kvs), nil
 	}
 }

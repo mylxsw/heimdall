@@ -26,7 +26,7 @@ type XMLResultSet struct {
 	Value     []XMLRow
 }
 
-func XML(w io.Writer, colNames []string, data []map[string]interface{}, sqlStr string) {
+func XML(w io.Writer, colNames []string, data []map[string]interface{}, sqlStr string) error {
 	result := XMLResultSet{
 		Statement: sqlStr,
 		XMLNS:     "http://www.w3.org/2001/XMLSchema-instance",
@@ -45,11 +45,13 @@ func XML(w io.Writer, colNames []string, data []map[string]interface{}, sqlStr s
 
 	marshalData, err := xml.MarshalIndent(result, "", "    ")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	_, err = fmt.Fprint(w, xml.Header+string(marshalData))
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }

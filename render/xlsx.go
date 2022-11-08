@@ -9,7 +9,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func XLSX(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) {
+func XLSX(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
 	exf := excelize.NewFile()
 	exfCols := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 	lineNo := 0
@@ -17,18 +17,22 @@ func XLSX(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]i
 	if !noHeader {
 		lineNo++
 		for i, colName := range colNames {
-			_ = exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[i], lineNo), colName)
+			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[i], lineNo), colName); err != nil {
+				return err
+			}
 		}
 	}
 
 	for _, kv := range kvs {
 		lineNo++
 		for j, colName := range colNames {
-			_ = exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[j], lineNo), kv[colName])
+			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[j], lineNo), kv[colName]); err != nil {
+				return err
+			}
 		}
 	}
 
-	_ = exf.Write(writer)
+	return exf.Write(writer)
 }
 
 type ExcelWriter struct {
@@ -60,16 +64,21 @@ func NewExcelWriter(filename string, headers []string) (Writer, error) {
 	}, nil
 }
 
-func (w *ExcelWriter) Write(data []string) error {
+func (w *ExcelWriter) Write(data []string) (err error) {
 	defer func() {
 		if w.rowNum >= MaxRowNumInSheet {
 			w.rowNum = 0
-			w.stream.Flush()
+			if err1 := w.stream.Flush(); err != nil {
+				err = err1
+				return
+			}
+
 			w.sheetNum++
 			w.excel.NewSheet("Sheet" + strconv.Itoa(w.sheetNum))
-			stream, err := w.excel.NewStreamWriter("Sheet" + strconv.Itoa(w.sheetNum))
+			stream, err1 := w.excel.NewStreamWriter("Sheet" + strconv.Itoa(w.sheetNum))
 			if err != nil {
-				panic(err)
+				err = err1
+				return
 			}
 
 			w.stream = stream
@@ -78,10 +87,12 @@ func (w *ExcelWriter) Write(data []string) error {
 
 	if len(w.headers) > 0 && w.rowNum == 0 {
 		w.rowNum++
-		w.stream.SetRow(
+		if err := w.stream.SetRow(
 			"A"+strconv.Itoa(w.rowNum),
 			array.Map(w.headers, func(item string) interface{} { return item }),
-		)
+		); err != nil {
+			return err
+		}
 	}
 
 	w.rowNum++

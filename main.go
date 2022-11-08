@@ -79,7 +79,7 @@ func main() {
 	defer w.Close()
 
 	startTime := time.Now()
-	total := handler(sqlStr, nil, format, w, noHeader)
+	total := must.Must(handler(sqlStr, nil, format, w, noHeader))
 
 	log.Debugf("write to %s, total %d records, %s elapsed", output, total, time.Since(startTime))
 }
