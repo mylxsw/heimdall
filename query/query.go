@@ -9,7 +9,7 @@ import (
 	"github.com/mylxsw/mysql-querier/extracter"
 )
 
-func Query(mysqlConnStr string, sqlStr string, queryTimeout time.Duration) (*extracter.Rows, error) {
+func Query(mysqlConnStr string, sqlStr string, args []interface{}, queryTimeout time.Duration) (*extracter.Rows, error) {
 	db, err := sql.Open("mysql", mysqlConnStr)
 	if err != nil {
 		return nil, err
@@ -17,14 +17,14 @@ func Query(mysqlConnStr string, sqlStr string, queryTimeout time.Duration) (*ext
 
 	defer db.Close()
 
-	return QueryDB(db, sqlStr, queryTimeout)
+	return QueryDB(db, sqlStr, args, queryTimeout)
 }
 
-func QueryDB(db *sql.DB, sqlStr string, queryTimeout time.Duration) (*extracter.Rows, error) {
+func QueryDB(db *sql.DB, sqlStr string, args []interface{}, queryTimeout time.Duration) (*extracter.Rows, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx, sqlStr)
+	rows, err := db.QueryContext(ctx, sqlStr, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -34,8 +34,8 @@ func QueryDB(db *sql.DB, sqlStr string, queryTimeout time.Duration) (*extracter.
 	return extracter.Extract(rows)
 }
 
-func StreamQueryDB(db *sql.DB, sqlStr string) ([]string, <-chan map[string]interface{}, error) {
-	rows, err := db.Query(sqlStr)
+func StreamQueryDB(db *sql.DB, sqlStr string, args []interface{}) ([]string, <-chan map[string]interface{}, error) {
+	rows, err := db.Query(sqlStr, args...)
 	if err != nil {
 		return nil, nil, err
 	}
