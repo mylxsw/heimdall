@@ -7,19 +7,20 @@ import (
 
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
+	"github.com/mylxsw/db-exporter/reader"
 	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/ternary"
 	"github.com/urfave/cli/v2"
-	"github.com/xuri/excelize/v2"
 )
 
 // ImportOption import option
 type ImportOption struct {
-	InputFile string
-	Table     string
-	FieldsMap map[string]string
-	Includes  []string
-	Excludes  []string
+	InputFile   string
+	Table       string
+	FieldsMap   map[string]string
+	Includes    []string
+	Excludes    []string
+	CSVSepertor rune
 }
 
 // resolveImportOption resolve import option
@@ -44,23 +45,25 @@ func resolveImportOption(c *cli.Context) ImportOption {
 	}
 
 	return ImportOption{
-		InputFile: c.String("input"),
-		Table:     c.String("table"),
-		FieldsMap: fieldsMap,
-		Includes:  includes,
-		Excludes:  ternary.If(len(includes) > 0, []string{}, excludes),
+		InputFile:   c.String("input"),
+		Table:       c.String("table"),
+		FieldsMap:   fieldsMap,
+		Includes:    includes,
+		Excludes:    ternary.If(len(includes) > 0, []string{}, excludes),
+		CSVSepertor: rune(c.String("csv-sepertor")[0]),
 	}
 }
 
 // BuildImportFlags build import flags
 func BuildImportFlags() []cli.Flag {
-	return []cli.Flag{
-		&cli.StringFlag{Name: "input", Aliases: []string{"i"}, Usage: "input excel file path", Required: true},
+	return append(BuildGlobalFlags(), []cli.Flag{
+		&cli.StringFlag{Name: "input", Aliases: []string{"i"}, Usage: "input excel or csv file path", Required: true},
 		&cli.StringFlag{Name: "table", Aliases: []string{"t"}, Usage: "target table name", Required: true},
-		&cli.StringSliceFlag{Name: "field", Aliases: []string{"f"}, Usage: "field map, eg: excel_field:db_field"},
-		&cli.StringSliceFlag{Name: "include", Aliases: []string{"I"}, Usage: "include fields, if set, only these fields will be imported"},
-		&cli.StringSliceFlag{Name: "exclude", Aliases: []string{"E"}, Usage: "exclude fields, if set, these fields will be ignored"},
-	}
+		&cli.StringSliceFlag{Name: "field", Aliases: []string{"f"}, Usage: "field map, eg: excel_field:db_field, this flag can be specified multiple times"},
+		&cli.StringSliceFlag{Name: "include", Aliases: []string{"I"}, Usage: "include fields, if set, only these fields will be imported, this flag can be specified multiple times"},
+		&cli.StringSliceFlag{Name: "exclude", Aliases: []string{"E"}, Usage: "exclude fields, if set, these fields will be ignored, this flag can be specified multiple times"},
+		&cli.StringFlag{Name: "csv-sepertor", Value: ",", Usage: "csv file sepertor, default is ','"},
+	}...)
 }
 
 // ImportCommand import command
@@ -104,13 +107,12 @@ func ImportCommand(c *cli.Context) error {
 		}
 	}
 
-	reader := ExcelFileReader{
-		filePath:  opt.InputFile,
-		fieldsMap: allowFields,
-		table:     opt.Table,
+	walker := reader.CreateFileWalker(opt.InputFile, opt.CSVSepertor)
+	if walker == nil {
+		return fmt.Errorf("unsupported file type: %s", opt.InputFile)
 	}
 
-	return importData(db, reader)
+	return importData(db, opt.Table, allowFields, walker)
 }
 
 // resolveFieldsMapFromTable resolve fields map from table
@@ -123,53 +125,15 @@ func resolveFieldsMapFromTable(db *sql.DB, targetTable string) (map[string]strin
 	defer rows.Close()
 
 	for rows.Next() {
-		var field, _type, _null, _key, _default, _extra string
+		var field, _type, _null, _key, _default, _extra *string
 		if err := rows.Scan(&field, &_type, &_null, &_key, &_default, &_extra); err != nil {
 			return nil, err
 		}
 
-		fieldsMap[field] = field
+		fieldsMap[*field] = *field
 	}
 
 	return fieldsMap, nil
-}
-
-type FileReader interface {
-	Walk(cb func(id string, row []string, sqlTemplate string, fieldIndexs map[string]int) error) error
-}
-
-type ExcelFileReader struct {
-	filePath  string
-	fieldsMap map[string]string
-	table     string
-}
-
-func (r ExcelFileReader) Walk(cb func(id string, row []string, sqlTemplate string, fieldIndexs map[string]int) error) error {
-	f, err := excelize.OpenFile(r.filePath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	for _, sheet := range f.GetSheetList() {
-		rows, err := f.GetRows(sheet)
-		if err != nil {
-			return err
-		}
-
-		if len(rows) < 2 {
-			continue
-		}
-
-		sqlTemplate, fields := buildSQLAndFields(r.table, resolveFieldIndexs(rows[0], r.fieldsMap))
-		for rowNum, row := range rows[1:] {
-			if err := cb(fmt.Sprintf("%s#%d", sheet, rowNum), row, sqlTemplate, fields); err != nil {
-				log.WithFields(log.Fields{"sheet": sheet, "row": rowNum}).Error(err)
-			}
-		}
-	}
-
-	return nil
 }
 
 func resolveFieldIndexs(header []string, fieldsMap map[string]string) map[string]int {
@@ -187,45 +151,74 @@ func resolveFieldIndexs(header []string, fieldsMap map[string]string) map[string
 	return fieldIndexs
 }
 
-// buildSQLAndFields build sql and fields
-func buildSQLAndFields(table string, fieldIndexs map[string]int) (string, map[string]int) {
+// buildSQLTemplate build sql template
+func buildSQLTemplate(table string, fieldIndexs map[string]int) (string, []string) {
 	fields := array.FromMapKeys(fieldIndexs)
-	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(fields, ", "), strings.Join(array.Repeat("?", len(fields)), ",")), fieldIndexs
+	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", table, strings.Join(fields, ", "), strings.Join(array.Repeat("?", len(fields)), ",")), fields
 }
 
 // importData import excel file
-func importData(db *sql.DB, fileReader FileReader) error {
-	var successCount, failedCount int
-	fileReader.Walk(func(id string, row []string, sqlTemplate string, fieldIndexs map[string]int) error {
-		var args []interface{}
-		for fieldName := range fieldIndexs {
-			if fieldIndexs[fieldName] < len(row) {
-				args = append(args, row[fieldIndexs[fieldName]])
-			}
-		}
+func importData(db *sql.DB, table string, fieldMap map[string]string, fileWalker reader.FileWalker) error {
+	log.With(fieldMap).Debug("fields map")
 
-		if _, err := db.Exec(sqlTemplate, args...); err != nil {
-			failedCount++
-			log.With(log.Fields{
-				"sql":  sqlTemplate,
+	var sqlTemplate string
+	var fields []string
+	var fieldIndexs map[string]int
+
+	var successCount, failedCount int
+	if err := fileWalker(
+		func(headers []string) error {
+			fieldIndexs = resolveFieldIndexs(headers, fieldMap)
+			if len(fieldIndexs) == 0 {
+				return fmt.Errorf("no field matched, headers: %v, fields map: %v", headers, fieldMap)
+			}
+
+			sqlTemplate, fields = buildSQLTemplate(table, fieldIndexs)
+			return nil
+		},
+		func(id string, row []string) error {
+			var args []interface{}
+			for _, fieldName := range fields {
+				if fieldIndexs[fieldName] < len(row) {
+					arg := strings.TrimSpace(row[fieldIndexs[fieldName]])
+					if arg != "" {
+						args = append(args, arg)
+					} else {
+						args = append(args, nil)
+					}
+				}
+			}
+
+			if len(array.Filter(args, func(arg interface{}) bool { return arg != nil })) == 0 {
+				log.Warningf("skip empty row: %s", id)
+				return nil
+			}
+
+			if _, err := db.Exec(sqlTemplate, args...); err != nil {
+				failedCount++
+				log.With(log.Fields{
+					"sql":  sqlTemplate,
+					"args": args,
+					"line": id,
+				}).Errorf("exec sql failed: %v", err)
+				return err
+			}
+
+			successCount++
+			log.WithFields(log.Fields{
 				"args": args,
 				"line": id,
-			}).Errorf("exec sql failed: %v", err)
-			return err
-		}
-
-		successCount++
-		log.WithFields(log.Fields{
-			"args": args,
-			"line": id,
-		}).Debugf("insert success %s", id)
-		return nil
-	})
+			}).Infof("insert success %s", id)
+			return nil
+		},
+	); err != nil {
+		return err
+	}
 
 	log.WithFields(log.Fields{
 		"success": successCount,
 		"fail":    failedCount,
-	}).Debugf("import success")
+	}).Infof("import success")
 
 	return nil
 }

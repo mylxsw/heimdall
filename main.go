@@ -19,8 +19,8 @@ var (
 func main() {
 	app := cli.NewApp()
 	app.EnableBashCompletion = true
-	app.Version = Version
-	app.Flags = commands.BuildGlobalFlags()
+	app.Suggest = true
+	app.Version = fmt.Sprintf("%s %s", Version, GitCommit)
 	app.Authors = []*cli.Author{
 		{
 			Name:  "mylxsw",

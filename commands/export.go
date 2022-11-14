@@ -24,7 +24,7 @@ type ExportOption struct {
 }
 
 func BuildExportFlags() []cli.Flag {
-	return []cli.Flag{
+	return append(BuildGlobalFlags(), []cli.Flag{
 		&cli.StringFlag{Name: "sql", Aliases: []string{"s"}, Value: "", Usage: "SQL statement"},
 		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain"},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
@@ -32,7 +32,7 @@ func BuildExportFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},
 		&cli.DurationFlag{Name: "timeout", Aliases: []string{"t"}, Value: 0, Usage: "query timeout, when the stream option is specified, this option is invalid"},
 		&cli.IntFlag{Name: "xlsx-max-row", Value: 1048576, Usage: "the maximum number of rows per sheet in an Excel file, including the row where the header is located"},
-	}
+	}...)
 }
 
 func resolveExportOption(c *cli.Context) ExportOption {
@@ -76,7 +76,7 @@ func ExportCommand(c *cli.Context) error {
 	startTime := time.Now()
 	total := must.Must(handler(expOpt.SQL, nil, expOpt.Format, w, expOpt.NoHeader))
 
-	log.Debugf("write to %s, total %d records, %s elapsed", expOpt.Output, total, time.Since(startTime))
+	log.Debugf("write to %s, total %d records, %s elapsed", ternary.If(expOpt.Output == "", "STDOUT", expOpt.Output), total, time.Since(startTime))
 
 	return nil
 }
