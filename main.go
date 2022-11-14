@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
-	"github.com/mylxsw/db-exporter/commands"
+	"github.com/mylxsw/asteria/log"
+	"github.com/mylxsw/db-tools/commands"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/urfave/cli/v2"
 
@@ -44,7 +46,7 @@ func main() {
 			Name:  "version",
 			Usage: "show version",
 			Action: func(c *cli.Context) error {
-				fmt.Printf("Version=%s, GitCommit=%s\n", Version, GitCommit)
+				fmt.Println(string(must.Must(json.Marshal(log.Fields{"version": Version, "commit": GitCommit}))))
 				return nil
 			},
 		},

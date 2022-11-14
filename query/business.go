@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/mylxsw/db-exporter/render"
+	"github.com/mylxsw/db-tools/render"
 	"github.com/mylxsw/go-utils/array"
 )
 

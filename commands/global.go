@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/mylxsw/db-exporter/query"
+	"github.com/mylxsw/db-tools/query"
 	"github.com/urfave/cli/v2"
 )
 

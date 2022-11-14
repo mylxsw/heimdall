@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/mylxsw/db-exporter/extracter"
+	"github.com/mylxsw/db-tools/extracter"
 	"github.com/mylxsw/go-utils/array"
 )
 
