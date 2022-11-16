@@ -7,9 +7,9 @@ import (
 
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
-	"github.com/mylxsw/db-tools/query"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
+	"github.com/mylxsw/heimdall/query"
 	"github.com/urfave/cli/v2"
 )
 

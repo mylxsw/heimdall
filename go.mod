@@ -1,4 +1,4 @@
-module github.com/mylxsw/db-tools
+module github.com/mylxsw/heimdall
 
 go 1.19
 

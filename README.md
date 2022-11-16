@@ -1,10 +1,10 @@
-# DB-Tools
+# Heimdall
 
-DB-Tools is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text, etc.
+Heimdall is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text, etc.
 
 ## Command Line Options
 
-**db-tools** support below commands
+**heimdall** support below commands
 
 - **import** data from xlsx or csv file to database table
 - **export** SQL query results to various file formats
@@ -55,7 +55,7 @@ The following command line options are supported：
 Import a xlsx file to database table 
 
 ```bash
-db-tools import --host 127.0.0.1 --port 3306 --database example --user root --password root \
+heimdall import --host 127.0.0.1 --port 3306 --database example --user root --password root \
     --table people \
     -field 区域:area \ 
     -field 姓名:name \
@@ -66,7 +66,7 @@ db-tools import --host 127.0.0.1 --port 3306 --database example --user root --pa
 Export new businesses in the last 30 days to an Excel file
 
 ```bash
-db-tools export --database example --host 127.0.0.1 --user root --password root \
+heimdall export --database example --host 127.0.0.1 --user root --password root \
       --sql "SELECT id, name AS '企业名称', address AS '企业地址', city_name AS '城市', district_name AS '区县', DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS '创建时间' FROM enterprise WHERE created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) ORDER BY id DESC" \
       --streaming \
       --format xlsx \

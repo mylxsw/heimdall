@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/mylxsw/db-tools/extracter"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/heimdall/extracter"
 )
 
 // Query query data from MySQL database, and return the result as a map, return all data at once

@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/mylxsw/db-tools/render"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/heimdall/render"
 )
 
 // QueryWriteHandler is a function definition for query write handler
