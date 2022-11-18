@@ -40,18 +40,20 @@ func main() {
 	}
 	app.Commands = []*cli.Command{
 		{
-			Name:    "export",
-			Aliases: []string{"query"},
-			Usage:   "export or query data from database",
-			Action:  commands.ExportCommand,
-			Flags:   commands.BuildExportFlags(),
+			Name:      "export",
+			Aliases:   []string{"query"},
+			Usage:     "export or query data from database",
+			UsageText: `heimdall export --database example --format json --sql 'select * from users'`,
+			Action:    commands.ExportCommand,
+			Flags:     commands.BuildExportFlags(),
 		},
 		{
-			Name:    "import",
-			Aliases: []string{"load"},
-			Usage:   "import or load data to database",
-			Action:  commands.ImportCommand,
-			Flags:   commands.BuildImportFlags(),
+			Name:      "import",
+			Aliases:   []string{"load"},
+			Usage:     "import or load data to database",
+			UsageText: "heimdall import --tx --database example --table users --file users.csv --file users.xlsx --field 姓名:name --field 年龄:age",
+			Action:    commands.ImportCommand,
+			Flags:     commands.BuildImportFlags(),
 		},
 		{
 			Name:  "version",
