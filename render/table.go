@@ -38,7 +38,11 @@ func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string
 	t.AppendRows(array.Map(kvs, func(kv map[string]interface{}) table.Row {
 		row := table.Row{}
 		for _, colName := range colNames {
-			row = append(row, kv[colName])
+			if v, ok := kv[colName]; ok && v != nil {
+				row = append(row, v)
+			} else {
+				row = append(row, "")
+			}
 		}
 
 		return row
