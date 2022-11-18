@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -16,7 +17,7 @@ type QueryWriteHandler func(sqlStr string, args []interface{}, format string, ou
 // NewStreamingQueryWriter create a function that executes SQL in the database
 // and writes the returned results to a file in the specified format.
 // The SQL query and the writing of the results are all streamed to reduce memory usage
-func NewStreamingQueryWriter(dbConnStr string) QueryWriteHandler {
+func NewStreamingQueryWriter(dbConnStr string, connectTimeout time.Duration) QueryWriteHandler {
 	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
 		if !array.In(format, []string{"csv", "json", "plain", "xlsx"}) {
 			return 0, fmt.Errorf("streaming only supports csv/json/plain/xlsx format, the current format is %s", format)
@@ -27,6 +28,15 @@ func NewStreamingQueryWriter(dbConnStr string) QueryWriteHandler {
 			return 0, err
 		}
 		defer db.Close()
+
+		if connectTimeout > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
+			defer cancel()
+
+			if err := db.PingContext(ctx); err != nil {
+				return 0, fmt.Errorf("database is unreached: %w", err)
+			}
+		}
 
 		colNames, stream, err := StreamQueryDB(db, sqlStr, args)
 		if err != nil {
@@ -40,9 +50,9 @@ func NewStreamingQueryWriter(dbConnStr string) QueryWriteHandler {
 // NewStandardQueryWriter create a function that executes SQL in the database
 // and writes the returned results to a file in the specified format.
 // Querying and writing are done at one time, and all intermediate process data will be loaded into memory
-func NewStandardQueryWriter(dbConnStr string, queryTimeout time.Duration) QueryWriteHandler {
+func NewStandardQueryWriter(dbConnStr string, connectTimeout time.Duration, queryTimeout time.Duration) QueryWriteHandler {
 	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
-		rs, err := Query(dbConnStr, sqlStr, args, queryTimeout)
+		rs, err := Query(dbConnStr, sqlStr, args, connectTimeout, queryTimeout)
 		if err != nil {
 			return 0, err
 		}

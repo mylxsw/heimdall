@@ -14,23 +14,23 @@ import (
 )
 
 type ExportOption struct {
-	SQL        string
-	Format     string
-	Output     string
-	Streaming  bool
-	NoHeader   bool
-	Timeout    time.Duration
-	XLSXMaxRow int
+	SQL          string
+	Format       string
+	Output       string
+	Streaming    bool
+	NoHeader     bool
+	QueryTimeout time.Duration
+	XLSXMaxRow   int
 }
 
 func BuildExportFlags() []cli.Flag {
 	return append(BuildGlobalFlags(), []cli.Flag{
-		&cli.StringFlag{Name: "sql", Aliases: []string{"s"}, Value: "", Usage: "SQL statement"},
+		&cli.StringFlag{Name: "sql", Aliases: []string{"s"}, Value: "", Usage: "SQL statement, if not set, read from STDIN"},
 		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain"},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
 		&cli.BoolFlag{Name: "streaming", Aliases: []string{"S"}, Value: false, Usage: "whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/xlsx/json/plain"},
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},
-		&cli.DurationFlag{Name: "timeout", Aliases: []string{"t"}, Value: 0, Usage: "query timeout, when the stream option is specified, this option is invalid"},
+		&cli.DurationFlag{Name: "query-timeout", Aliases: []string{"t"}, Value: 120 * time.Second, Usage: "query timeout, when the stream option is specified, this option is invalid"},
 		&cli.IntFlag{Name: "xlsx-max-row", Value: 1048576, Usage: "the maximum number of rows per sheet in an Excel file, including the row where the header is located"},
 	}...)
 }
@@ -38,17 +38,17 @@ func BuildExportFlags() []cli.Flag {
 func resolveExportOption(c *cli.Context) ExportOption {
 	sqlStr := c.String("sql")
 	if sqlStr == "" {
-		sqlStr = readStdin()
+		sqlStr = readAll(os.Stdin, ';')
 	}
 
 	return ExportOption{
-		SQL:        sqlStr,
-		Format:     c.String("format"),
-		Output:     c.String("output"),
-		Streaming:  c.Bool("streaming"),
-		NoHeader:   c.Bool("no-header"),
-		Timeout:    c.Duration("timeout"),
-		XLSXMaxRow: c.Int("xlsx-max-row"),
+		SQL:          sqlStr,
+		Format:       c.String("format"),
+		Output:       c.String("output"),
+		Streaming:    c.Bool("streaming"),
+		NoHeader:     c.Bool("no-header"),
+		QueryTimeout: c.Duration("query-timeout"),
+		XLSXMaxRow:   c.Int("xlsx-max-row"),
 	}
 }
 
@@ -62,8 +62,10 @@ func ExportCommand(c *cli.Context) error {
 
 	handler := ternary.IfLazy(
 		expOpt.Streaming,
-		func() query.QueryWriteHandler { return query.NewStreamingQueryWriter(gOpt.DSN()) },
-		func() query.QueryWriteHandler { return query.NewStandardQueryWriter(gOpt.DSN(), expOpt.Timeout) },
+		func() query.QueryWriteHandler { return query.NewStreamingQueryWriter(gOpt.DSN(), gOpt.ConnectTimeout) },
+		func() query.QueryWriteHandler {
+			return query.NewStandardQueryWriter(gOpt.DSN(), gOpt.ConnectTimeout, expOpt.QueryTimeout)
+		},
 	)
 
 	w := ternary.IfElseLazy(expOpt.Output != "", func() io.WriteCloser {

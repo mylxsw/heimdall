@@ -18,17 +18,19 @@ var (
 	GitCommit   string
 	Version     string
 	CompileTime string
+	Debug       string
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "heimdall"
-	app.Usage = "tools for database import and export"
+	app.Usage = "tools for database import and export(query)"
 	app.Copyright = "© 2022 mylxsw"
 	app.Compiled, _ = time.Parse(time.RFC3339, CompileTime)
 	app.Description = "Heimdall is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text"
 	app.EnableBashCompletion = true
 	app.Suggest = true
+	app.UseShortOptionHandling = true
 	app.Version = fmt.Sprintf("%s %s", Version, GitCommit)
 	app.Authors = []*cli.Author{
 		{
@@ -38,16 +40,18 @@ func main() {
 	}
 	app.Commands = []*cli.Command{
 		{
-			Name:   "export",
-			Usage:  "export data from database",
-			Action: commands.ExportCommand,
-			Flags:  commands.BuildExportFlags(),
+			Name:    "export",
+			Aliases: []string{"query"},
+			Usage:   "export or query data from database",
+			Action:  commands.ExportCommand,
+			Flags:   commands.BuildExportFlags(),
 		},
 		{
-			Name:   "import",
-			Usage:  "import data to database",
-			Action: commands.ImportCommand,
-			Flags:  commands.BuildImportFlags(),
+			Name:    "import",
+			Aliases: []string{"load"},
+			Usage:   "import or load data to database",
+			Action:  commands.ImportCommand,
+			Flags:   commands.BuildImportFlags(),
 		},
 		{
 			Name:  "version",
@@ -59,5 +63,12 @@ func main() {
 		},
 	}
 
-	must.NoError(app.Run(os.Args))
+	if err := app.Run(os.Args); err != nil {
+		if Debug == "true" {
+			panic(err)
+		}
+
+		fmt.Fprintf(os.Stderr, "😨 %s\n", err)
+	}
+
 }

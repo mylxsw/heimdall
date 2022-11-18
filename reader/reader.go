@@ -8,10 +8,28 @@ import (
 	"strings"
 
 	"github.com/mylxsw/asteria/log"
+	"github.com/mylxsw/go-utils/array"
 	"github.com/xuri/excelize/v2"
 )
 
-type FileWalker func(headerCB func(headers []string) error, dataCB func(id string, data []string) error) error
+type FileWalker func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error
+
+func MergeWalkers(walkers ...FileWalker) FileWalker {
+	walkers = array.Filter(walkers, func(walker FileWalker) bool { return walker != nil })
+	if len(walkers) == 0 {
+		return nil
+	}
+
+	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
+		for _, walker := range walkers {
+			if err := walker(headerCB, dataCB); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
 
 func CreateFileWalker(filePath string, csvSepertor rune) FileWalker {
 	if strings.HasSuffix(filePath, ".xlsx") {
@@ -26,7 +44,7 @@ func CreateFileWalker(filePath string, csvSepertor rune) FileWalker {
 }
 
 func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
-	return func(headerCB func(headers []string) error, dataCB func(id string, data []string) error) error {
+	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
 		f, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 		if err != nil {
 			return err
@@ -47,15 +65,16 @@ func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
 			}
 
 			if index == 1 {
-				if err := headerCB(record); err != nil {
+				if err := headerCB(filePath, record); err != nil {
+					log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
 					return err
 				}
 
 				continue
 			}
 
-			if err := dataCB(fmt.Sprintf("%d", index), record); err != nil {
-				log.WithFields(log.Fields{"index": index}).Error(err)
+			if err := dataCB(filePath, fmt.Sprintf("%d", index), record); err != nil {
+				log.WithFields(log.Fields{"index": index, "file": filePath}).Errorf("handle data failed: %s", err)
 			}
 		}
 
@@ -64,7 +83,7 @@ func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
 }
 
 func createExcelFileWalker(filePath string) FileWalker {
-	return func(headerCB func(headers []string) error, dataCB func(id string, data []string) error) error {
+	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
 		f, err := excelize.OpenFile(filePath)
 		if err != nil {
 			return err
@@ -81,13 +100,14 @@ func createExcelFileWalker(filePath string) FileWalker {
 				continue
 			}
 
-			if err := headerCB(rows[0]); err != nil {
+			if err := headerCB(filePath, rows[0]); err != nil {
+				log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
 				return err
 			}
 
 			for rowNum, row := range rows[1:] {
-				if err := dataCB(fmt.Sprintf("%s#%d", sheet, rowNum), row); err != nil {
-					log.WithFields(log.Fields{"sheet": sheet, "row": rowNum}).Error(err)
+				if err := dataCB(filePath, fmt.Sprintf("%s#%d", sheet, rowNum), row); err != nil {
+					log.WithFields(log.Fields{"sheet": sheet, "row": rowNum, "file": filePath}).Errorf("handle data failed: %s", err)
 				}
 			}
 		}

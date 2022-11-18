@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/mylxsw/go-utils/array"
@@ -10,13 +11,22 @@ import (
 )
 
 // Query query data from MySQL database, and return the result as a map, return all data at once
-func Query(mysqlConnStr string, sqlStr string, args []interface{}, queryTimeout time.Duration) (*extracter.Rows, error) {
+func Query(mysqlConnStr string, sqlStr string, args []interface{}, connectTimeout time.Duration, queryTimeout time.Duration) (*extracter.Rows, error) {
 	db, err := sql.Open("mysql", mysqlConnStr)
 	if err != nil {
 		return nil, err
 	}
 
 	defer db.Close()
+
+	if connectTimeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), connectTimeout)
+		defer cancel()
+
+		if err := db.PingContext(ctx); err != nil {
+			return nil, fmt.Errorf("database is unreached: %w", err)
+		}
+	}
 
 	return QueryDB(db, sqlStr, args, queryTimeout)
 }

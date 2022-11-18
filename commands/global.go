@@ -3,18 +3,27 @@ package commands
 import (
 	"bufio"
 	"io"
-	"os"
+	"time"
 
 	"github.com/mylxsw/heimdall/query"
 	"github.com/urfave/cli/v2"
 )
 
-func readStdin() string {
-	reader := bufio.NewReader(os.Stdin)
-	var result []rune
+func readAll(r io.Reader, endSign byte) string {
+	reader := bufio.NewReader(r)
+
+	var result []byte
 	for {
-		input, _, err := reader.ReadRune()
-		if err != nil && err == io.EOF {
+		input, err := reader.ReadByte()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			panic(err)
+		}
+
+		if input == '\n' && result[len(result)-1] == endSign {
 			break
 		}
 
@@ -32,16 +41,18 @@ func BuildGlobalFlags() []cli.Flag {
 		&cli.StringFlag{Name: "password", Aliases: []string{"p"}, Value: "", Usage: "MySQL password"},
 		&cli.StringFlag{Name: "database", Aliases: []string{"d"}, Value: "", Usage: "MySQL database"},
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
+		&cli.DurationFlag{Name: "connect-timeout", Value: 3 * time.Second, Usage: "database connect timeout"},
 	}
 }
 
 type GlobalOption struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
-	Debug    bool
+	Host           string
+	Port           int
+	User           string
+	Password       string
+	Database       string
+	Debug          bool
+	ConnectTimeout time.Duration
 }
 
 func (globalOption GlobalOption) DSN() string {
@@ -56,11 +67,12 @@ func (globalOption GlobalOption) DSN() string {
 
 func resolveGlobalOption(c *cli.Context) GlobalOption {
 	return GlobalOption{
-		Host:     c.String("host"),
-		Port:     c.Int("port"),
-		User:     c.String("user"),
-		Password: c.String("password"),
-		Database: c.String("database"),
-		Debug:    c.Bool("debug"),
+		Host:           c.String("host"),
+		Port:           c.Int("port"),
+		User:           c.String("user"),
+		Password:       c.String("password"),
+		Database:       c.String("database"),
+		Debug:          c.Bool("debug"),
+		ConnectTimeout: c.Duration("connect-timeout"),
 	}
 }
