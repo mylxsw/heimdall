@@ -5,12 +5,10 @@ go 1.19
 require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jedib0t/go-pretty/v6 v6.4.2
-	github.com/mylxsw/asteria v0.0.0-20220327145745-90b9a4ef2cea
-	github.com/mylxsw/coll v0.0.0-20210423142615-0a2e3d0afc0e
-	github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1
+	github.com/mylxsw/asteria v1.0.0
+	github.com/mylxsw/go-utils v1.0.0
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/xuri/excelize/v2 v2.6.1
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -31,4 +29,5 @@ require (
 	golang.org/x/net v0.0.0-20220812174116-3211cb980234 // indirect
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )

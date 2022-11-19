@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/heimdall/extracter"
 )
 
@@ -47,14 +46,11 @@ func QueryDB(db *sql.DB, sqlStr string, args []interface{}, queryTimeout time.Du
 }
 
 // StreamQuery query data from MySQL database, and return the result one by one using channel
-func StreamQueryDB(db *sql.DB, sqlStr string, args []interface{}) ([]string, <-chan map[string]interface{}, error) {
+func StreamQueryDB(db *sql.DB, sqlStr string, args []interface{}) ([]extracter.Column, <-chan map[string]interface{}, error) {
 	rows, err := db.Query(sqlStr, args...)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cols, stream, err := extracter.ExtractStream(rows)
-
-	colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
-	return colNames, stream, err
+	return extracter.ExtractStream(rows)
 }

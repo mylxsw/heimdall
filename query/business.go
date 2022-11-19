@@ -38,12 +38,12 @@ func NewStreamingQueryWriter(dbConnStr string, targetTableForSQLFormat string, c
 			}
 		}
 
-		colNames, stream, err := StreamQueryDB(db, sqlStr, args)
+		cols, stream, err := StreamQueryDB(db, sqlStr, args)
 		if err != nil {
 			return 0, err
 		}
 
-		return render.StreamingRender(output, format, noHeader, colNames, stream, targetTableForSQLFormat)
+		return render.StreamingRender(output, format, noHeader, cols, stream, targetTableForSQLFormat)
 	}
 }
 
@@ -57,9 +57,7 @@ func NewStandardQueryWriter(dbConnStr string, targetTableForSQLFormat string, co
 			return 0, err
 		}
 
-		colNames, kvs := rs.SplitColumnAndKVs()
-
-		writer, err := render.Render(format, noHeader, colNames, kvs, sqlStr, targetTableForSQLFormat)
+		writer, err := render.Render(format, noHeader, rs.Columns, rs.DataSets, sqlStr, targetTableForSQLFormat)
 		if err != nil {
 			return 0, err
 		}
@@ -68,6 +66,6 @@ func NewStandardQueryWriter(dbConnStr string, targetTableForSQLFormat string, co
 			return 0, err
 		}
 
-		return len(kvs), nil
+		return len(rs.DataSets), nil
 	}
 }

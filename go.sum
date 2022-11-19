@@ -24,12 +24,10 @@ github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9G
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9M+97sNutRR1RKhG96O6jWumTTnw=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
-github.com/mylxsw/asteria v0.0.0-20220327145745-90b9a4ef2cea h1:2VHvITphrQjM9y3MMTy7aoTic1nveFtWRx14t8Ndhm8=
-github.com/mylxsw/asteria v0.0.0-20220327145745-90b9a4ef2cea/go.mod h1:pmMRQjiOk1ZndmWnk7fDb4iIVrPhWCaWl6wV0R51zws=
-github.com/mylxsw/coll v0.0.0-20210423142615-0a2e3d0afc0e h1:BX4A2trfIGiDWAr/ORZQI6tW+5QktEaN/PZ4wuYilkA=
-github.com/mylxsw/coll v0.0.0-20210423142615-0a2e3d0afc0e/go.mod h1:ajdrWwm8dvgQ2BJw5+Z9DA1hw76v1fjD6GpIqjjQ6xo=
-github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1 h1:amxSsrhevoE3pIl2X4Z8ehmfO+gCBWXB33ovXbFkfMk=
-github.com/mylxsw/go-utils v0.0.0-20221028031733-26a128b904c1/go.mod h1:GIywna5jA7dodjmre1qXJYLpKg1x6N/foN6BSqc9jgs=
+github.com/mylxsw/asteria v1.0.0 h1:1M9+/hNfKN5TNAeMfwCoxPt96pitYg2ytUO/9bwDzqk=
+github.com/mylxsw/asteria v1.0.0/go.mod h1:pmMRQjiOk1ZndmWnk7fDb4iIVrPhWCaWl6wV0R51zws=
+github.com/mylxsw/go-utils v1.0.0 h1:ZiDRGrKvtMbMw3Fm/sS8siBLZ2rQ/7YdBL12z2bSsPI=
+github.com/mylxsw/go-utils v1.0.0/go.mod h1:GIywna5jA7dodjmre1qXJYLpKg1x6N/foN6BSqc9jgs=
 github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -46,7 +44,6 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
-github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.7.4 h1:wZRexSlwd7ZXfKINDLsO4r7WBt3gTKONc6K/VesHvHM=
 github.com/stretchr/testify v1.7.4/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
@@ -84,8 +81,6 @@ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 h1:qIbj1fsPNlZgppZ+VLlY7N33q108Sa+fhmuc+sWQYwY=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
-gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
-gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.0/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=

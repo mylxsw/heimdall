@@ -2,18 +2,19 @@ package render
 
 import (
 	"bytes"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
+	"github.com/mylxsw/heimdall/extracter"
 )
 
 type Writer interface {
@@ -21,18 +22,12 @@ type Writer interface {
 	Close() error
 }
 
-func StreamingRender(output io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}, targetTableForSQLFormat string) (int, error) {
-	if format == "xlsx" {
-		return streamRenderXlsx(output, noHeader, colNames, stream)
-	}
-
-	return streamingRender(output, format, stream, noHeader, colNames, targetTableForSQLFormat)
-}
-
-func streamingRender(output io.Writer, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string, targetTableForSQLFormat string) (int, error) {
-	var total int
+func StreamingRender(output io.Writer, format string, noHeader bool, cols []extracter.Column, stream <-chan map[string]interface{}, targetTableForSQLFormat string) (int, error) {
 	switch format {
+	case "xlsx":
+		return streamRenderXlsx(output, noHeader, cols, stream)
 	case "json":
+		var total int
 		for item := range stream {
 			total++
 			if _, err := output.Write(must.Must(json.Marshal(item))); err != nil {
@@ -43,99 +38,37 @@ func streamingRender(output io.Writer, format string, stream <-chan map[string]i
 			}
 		}
 	case "csv":
-		// Write BOM header for UTF-8
-		if _, err := output.Write([]byte("\xEF\xBB\xBF")); err != nil {
-			return 0, err
-		}
-
-		csvWriter := csv.NewWriter(output)
-		defer csvWriter.Flush()
-
-		if !noHeader {
-			if err := csvWriter.Write(colNames); err != nil {
-				return 0, err
-			}
-		}
-
-		for item := range stream {
-			total++
-			line := make([]string, 0)
-			for _, colName := range colNames {
-				line = append(line, resolveValue(item[colName]))
-			}
-
-			if err := csvWriter.Write(line); err != nil {
-				return 0, err
-			}
-		}
+		return streamRenderCSV(output, stream, noHeader, cols)
 	case "sql":
+		var total int
 		for item := range stream {
 			total++
-			if _, err := output.Write([]byte(buildSQLInsertStr(targetTableForSQLFormat, colNames, item))); err != nil {
+			if _, err := output.Write([]byte(buildSQLInsertStr(targetTableForSQLFormat, cols, item))); err != nil {
 				return 0, err
 			}
 		}
-	default:
-		for item := range stream {
-			total++
-			lines := make([]string, 0)
-			for _, colName := range colNames {
-				lines = append(
-					lines,
-					strings.ReplaceAll(ternary.IfLazy(
-						noHeader,
-						func() string { return resolveValue(item[colName]) },
-						func() string { return fmt.Sprintf("%s=%v", colName, resolveValue(item[colName])) },
-					), "\n", "\\n"),
-				)
-			}
+		return total, nil
 
-			if _, err := output.Write([]byte(fmt.Sprintln(strings.Join(lines, ", ")))); err != nil {
-				return 0, err
-			}
-		}
 	}
 
-	return total, nil
-}
-
-func streamRenderXlsx(output io.Writer, noHeader bool, colNames []string, stream <-chan map[string]interface{}) (total int, err error) {
-	tmpFilename := createTempFilename() + ".xlsx"
-	w, err := NewExcelWriter(tmpFilename, ternary.If(noHeader, []string{}, colNames))
-	if err != nil {
-		return 0, err
-	}
-
-	defer func() {
-		if err1 := w.Close(); err1 != nil {
-			err = err1
-			return
-		}
-
-		f, err1 := os.Open(tmpFilename)
-		if err1 != nil {
-			err = err1
-			return
-		}
-		defer func() {
-			_ = f.Close()
-			_ = os.Remove(tmpFilename)
-		}()
-
-		if _, err1 = io.Copy(output, f); err1 != nil {
-			err = err1
-			return
-		}
-	}()
-
+	var total int
 	for item := range stream {
 		total++
-		line := make([]string, 0)
-		for _, colName := range colNames {
-			line = append(line, resolveValue(item[colName]))
+		lines := make([]string, 0)
+		for _, col := range cols {
+			lines = append(
+				lines,
+				ternary.IfLazy(
+					noHeader,
+					func() string { return extracter.Sanitize(resolveValue(col, item[col.Name])) },
+					func() string {
+						return fmt.Sprintf("%s=%v", col.Name, extracter.Sanitize(resolveValue(col, item[col.Name])))
+					},
+				),
+			)
 		}
 
-		if err := w.Write(line); err != nil {
+		if _, err := output.Write([]byte(fmt.Sprintln(strings.Join(lines, ", ")))); err != nil {
 			return 0, err
 		}
 	}
@@ -143,15 +76,30 @@ func streamRenderXlsx(output io.Writer, noHeader bool, colNames []string, stream
 	return total, nil
 }
 
-func resolveValue(value interface{}) string {
+func resolveValue(col extracter.Column, value interface{}) string {
 	if value == nil {
 		return ""
+	}
+
+	if v1, ok := value.(int64); ok {
+		return fmt.Sprintf("%d", v1)
+	}
+
+	if v1, ok := value.(float64); ok {
+		return strconv.FormatFloat(v1, 'f', -1, 64)
+	}
+
+	switch col.Type {
+	case extracter.ColumnTypeDate:
+		return value.(time.Time).Format("2006-01-02")
+	case extracter.ColumnTypeDatetime, extracter.ColumnTypeTimestamp:
+		return value.(time.Time).Format("2006-01-02 15:04:05")
 	}
 
 	return fmt.Sprintf("%v", value)
 }
 
-func Render(format string, noHeader bool, colNames []string, kvs []map[string]interface{}, sqlStr string, targetTableForSQLFormat string) (*bytes.Buffer, error) {
+func Render(format string, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}, sqlStr string, targetTableForSQLFormat string) (*bytes.Buffer, error) {
 	writer := bytes.NewBuffer(nil)
 
 	switch format {
@@ -160,28 +108,31 @@ func Render(format string, noHeader bool, colNames []string, kvs []map[string]in
 	case "yaml":
 		return writer, YAML(writer, kvs)
 	case "table":
-		return writer, Table(writer, noHeader, colNames, kvs)
+		return writer, Table(writer, noHeader, cols, kvs)
 	case "markdown":
-		return writer, Markdown(writer, noHeader, colNames, kvs)
+		return writer, Markdown(writer, noHeader, cols, kvs)
 	case "csv":
-		return writer, CSV(writer, noHeader, colNames, kvs)
+		_, err := renderCSVAll(writer, kvs, noHeader, cols)
+		return writer, err
 	case "html":
-		return writer, HTML(writer, noHeader, colNames, kvs)
+		return writer, HTML(writer, noHeader, cols, kvs)
 	case "xlsx":
-		return writer, XLSX(writer, noHeader, colNames, kvs)
+		return writer, XLSX(writer, noHeader, cols, kvs)
 	case "xml":
-		return writer, XML(writer, colNames, kvs, sqlStr)
+		return writer, XML(writer, cols, kvs, sqlStr)
 	case "sql":
-		return writer, SQL(writer, targetTableForSQLFormat, colNames, kvs, sqlStr)
+		return writer, SQL(writer, targetTableForSQLFormat, cols, kvs, sqlStr)
 	default:
 		for _, kv := range kvs {
 			lines := make([]string, 0)
-			for _, colName := range colNames {
-				lines = append(lines, strings.ReplaceAll(ternary.IfLazy(
+			for _, col := range cols {
+				lines = append(lines, ternary.IfLazy(
 					noHeader,
-					func() string { return resolveValue(kv[colName]) },
-					func() string { return fmt.Sprintf("%s=%v", colName, resolveValue(kv[colName])) },
-				), "\n", "\\n"))
+					func() string { return extracter.Sanitize(resolveValue(col, kv[col.Name])) },
+					func() string {
+						return fmt.Sprintf("%s=%v", col.Name, extracter.Sanitize(resolveValue(col, kv[col.Name])))
+					},
+				))
 			}
 
 			_, err := writer.Write([]byte(fmt.Sprintln(strings.Join(lines, ", "))))
@@ -195,5 +146,5 @@ func Render(format string, noHeader bool, colNames []string, kvs []map[string]in
 }
 
 func createTempFilename() string {
-	return filepath.Join(os.TempDir(), fmt.Sprintf("mysql-querier-%d-%d.tmp", time.Now().UnixNano(), rand.Intn(1000000000)))
+	return filepath.Join(os.TempDir(), fmt.Sprintf("heimdall-export-%d-%d.tmp", time.Now().UnixNano(), rand.Intn(1000000000)))
 }

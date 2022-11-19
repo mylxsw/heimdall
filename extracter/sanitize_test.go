@@ -1,4 +1,4 @@
-package render
+package extracter
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ func TestForSQLInjection(t *testing.T) {
 	}
 	var query string
 	for _, example := range examples {
-		query = fmt.Sprintf(example[0], sanitize(example[1]))
+		query = fmt.Sprintf(example[0], Sanitize(example[1]))
 
 		if example[2] != query {
 			t.Fatalf("expected %#v, got %#v", example[2], query)

@@ -3,21 +3,24 @@ package render
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/go-utils/ternary"
+	"github.com/mylxsw/heimdall/extracter"
 	"github.com/xuri/excelize/v2"
 )
 
-func XLSX(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
+func XLSX(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}) error {
 	exf := excelize.NewFile()
 	exfCols := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}
 	lineNo := 0
 
 	if !noHeader {
 		lineNo++
-		for i, colName := range colNames {
-			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[i], lineNo), colName); err != nil {
+		for i, col := range cols {
+			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[i], lineNo), col.Name); err != nil {
 				return err
 			}
 		}
@@ -25,8 +28,8 @@ func XLSX(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]i
 
 	for _, kv := range kvs {
 		lineNo++
-		for j, colName := range colNames {
-			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[j], lineNo), kv[colName]); err != nil {
+		for j, col := range cols {
+			if err := exf.SetCellValue("Sheet1", fmt.Sprintf("%s%d", exfCols[j], lineNo), kv[col.Name]); err != nil {
 				return err
 			}
 		}
@@ -107,4 +110,50 @@ func (w *ExcelWriter) Close() error {
 		return err
 	}
 	return w.excel.SaveAs(w.filename)
+}
+
+func streamRenderXlsx(output io.Writer, noHeader bool, cols []extracter.Column, stream <-chan map[string]interface{}) (total int, err error) {
+	tmpFilename := createTempFilename() + ".xlsx"
+
+	colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
+	w, err := NewExcelWriter(tmpFilename, ternary.If(noHeader, []string{}, colNames))
+	if err != nil {
+		return 0, err
+	}
+
+	defer func() {
+		if err1 := w.Close(); err1 != nil {
+			err = err1
+			return
+		}
+
+		f, err1 := os.Open(tmpFilename)
+		if err1 != nil {
+			err = err1
+			return
+		}
+		defer func() {
+			_ = f.Close()
+			_ = os.Remove(tmpFilename)
+		}()
+
+		if _, err1 = io.Copy(output, f); err1 != nil {
+			err = err1
+			return
+		}
+	}()
+
+	for item := range stream {
+		total++
+		line := make([]string, 0)
+		for _, col := range cols {
+			line = append(line, resolveValue(col, item[col.Name]))
+		}
+
+		if err := w.Write(line); err != nil {
+			return 0, err
+		}
+	}
+
+	return total, nil
 }

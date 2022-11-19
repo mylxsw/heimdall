@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/heimdall/extracter"
 )
 
 type XMLField struct {
@@ -26,7 +27,7 @@ type XMLResultSet struct {
 	Value     []XMLRow
 }
 
-func XML(w io.Writer, colNames []string, data []map[string]interface{}, sqlStr string) error {
+func XML(w io.Writer, cols []extracter.Column, data []map[string]interface{}, sqlStr string) error {
 	result := XMLResultSet{
 		Statement: sqlStr,
 		XMLNS:     "http://www.w3.org/2001/XMLSchema-instance",

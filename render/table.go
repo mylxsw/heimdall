@@ -6,39 +6,40 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/heimdall/extracter"
 )
 
-func Table(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
-	return render(writer, noHeader, colNames, kvs, "table")
+func Table(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, cols, kvs, "table")
 }
 
-func Markdown(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
-	return render(writer, noHeader, colNames, kvs, "markdown")
+func Markdown(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, cols, kvs, "markdown")
 }
 
-func CSV(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
+func CSV(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}) error {
 	// Write BOM header for UTF-8
 	if _, err := writer.Write([]byte("\xEF\xBB\xBF")); err != nil {
 		return err
 	}
 
-	return render(writer, noHeader, colNames, kvs, "csv")
+	return render(writer, noHeader, cols, kvs, "csv")
 }
 
-func HTML(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}) error {
-	return render(writer, noHeader, colNames, kvs, "html")
+func HTML(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}) error {
+	return render(writer, noHeader, cols, kvs, "html")
 }
 
-func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string]interface{}, typ string) error {
+func render(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[string]interface{}, typ string) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(writer)
 	if !noHeader {
-		t.AppendHeader(array.Map(colNames, func(name string) interface{} { return name }))
+		t.AppendHeader(array.Map(cols, func(col extracter.Column) interface{} { return col.Name }))
 	}
 	t.AppendRows(array.Map(kvs, func(kv map[string]interface{}) table.Row {
 		row := table.Row{}
-		for _, colName := range colNames {
-			if v, ok := kv[colName]; ok && v != nil {
+		for _, col := range cols {
+			if v, ok := kv[col.Name]; ok && v != nil {
 				row = append(row, v)
 			} else {
 				row = append(row, "")
@@ -58,9 +59,9 @@ func render(writer io.Writer, noHeader bool, colNames []string, kvs []map[string
 	default:
 		if len(kvs) > 10 {
 			row := table.Row{}
-			if len(colNames) > 1 {
+			if len(cols) > 1 {
 				row = append(row, "Total")
-				for i := 0; i < len(colNames)-1; i++ {
+				for i := 0; i < len(cols)-1; i++ {
 					row = append(row, len(kvs))
 				}
 			} else {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func YAML(w io.Writer, data interface{}) error {
