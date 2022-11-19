@@ -17,10 +17,10 @@ type QueryWriteHandler func(sqlStr string, args []interface{}, format string, ou
 // NewStreamingQueryWriter create a function that executes SQL in the database
 // and writes the returned results to a file in the specified format.
 // The SQL query and the writing of the results are all streamed to reduce memory usage
-func NewStreamingQueryWriter(dbConnStr string, connectTimeout time.Duration) QueryWriteHandler {
+func NewStreamingQueryWriter(dbConnStr string, targetTableForSQLFormat string, connectTimeout time.Duration) QueryWriteHandler {
 	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
-		if !array.In(format, []string{"csv", "json", "plain", "xlsx"}) {
-			return 0, fmt.Errorf("streaming only supports csv/json/plain/xlsx format, the current format is %s", format)
+		if !array.In(format, []string{"csv", "json", "plain", "xlsx", "sql"}) {
+			return 0, fmt.Errorf("streaming only supports csv/json/plain/xlsx/sql format, the current format is %s", format)
 		}
 
 		db, err := sql.Open("mysql", dbConnStr)
@@ -43,14 +43,14 @@ func NewStreamingQueryWriter(dbConnStr string, connectTimeout time.Duration) Que
 			return 0, err
 		}
 
-		return render.StreamingRender(output, format, noHeader, colNames, stream)
+		return render.StreamingRender(output, format, noHeader, colNames, stream, targetTableForSQLFormat)
 	}
 }
 
 // NewStandardQueryWriter create a function that executes SQL in the database
 // and writes the returned results to a file in the specified format.
 // Querying and writing are done at one time, and all intermediate process data will be loaded into memory
-func NewStandardQueryWriter(dbConnStr string, connectTimeout time.Duration, queryTimeout time.Duration) QueryWriteHandler {
+func NewStandardQueryWriter(dbConnStr string, targetTableForSQLFormat string, connectTimeout time.Duration, queryTimeout time.Duration) QueryWriteHandler {
 	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
 		rs, err := Query(dbConnStr, sqlStr, args, connectTimeout, queryTimeout)
 		if err != nil {
@@ -59,7 +59,7 @@ func NewStandardQueryWriter(dbConnStr string, connectTimeout time.Duration, quer
 
 		colNames, kvs := rs.SplitColumnAndKVs()
 
-		writer, err := render.Render(format, noHeader, colNames, kvs, sqlStr)
+		writer, err := render.Render(format, noHeader, colNames, kvs, sqlStr, targetTableForSQLFormat)
 		if err != nil {
 			return 0, err
 		}

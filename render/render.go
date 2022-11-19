@@ -21,15 +21,15 @@ type Writer interface {
 	Close() error
 }
 
-func StreamingRender(output io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}) (int, error) {
+func StreamingRender(output io.Writer, format string, noHeader bool, colNames []string, stream <-chan map[string]interface{}, targetTableForSQLFormat string) (int, error) {
 	if format == "xlsx" {
 		return streamRenderXlsx(output, noHeader, colNames, stream)
 	}
 
-	return streamingRender(output, format, stream, noHeader, colNames)
+	return streamingRender(output, format, stream, noHeader, colNames, targetTableForSQLFormat)
 }
 
-func streamingRender(output io.Writer, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string) (int, error) {
+func streamingRender(output io.Writer, format string, stream <-chan map[string]interface{}, noHeader bool, colNames []string, targetTableForSQLFormat string) (int, error) {
 	var total int
 	switch format {
 	case "json":
@@ -65,6 +65,13 @@ func streamingRender(output io.Writer, format string, stream <-chan map[string]i
 			}
 
 			if err := csvWriter.Write(line); err != nil {
+				return 0, err
+			}
+		}
+	case "sql":
+		for item := range stream {
+			total++
+			if _, err := output.Write([]byte(buildSQLInsertStr(targetTableForSQLFormat, colNames, item))); err != nil {
 				return 0, err
 			}
 		}
@@ -144,7 +151,7 @@ func resolveValue(value interface{}) string {
 	return fmt.Sprintf("%v", value)
 }
 
-func Render(format string, noHeader bool, colNames []string, kvs []map[string]interface{}, sqlStr string) (*bytes.Buffer, error) {
+func Render(format string, noHeader bool, colNames []string, kvs []map[string]interface{}, sqlStr string, targetTableForSQLFormat string) (*bytes.Buffer, error) {
 	writer := bytes.NewBuffer(nil)
 
 	switch format {
@@ -164,6 +171,8 @@ func Render(format string, noHeader bool, colNames []string, kvs []map[string]in
 		return writer, XLSX(writer, noHeader, colNames, kvs)
 	case "xml":
 		return writer, XML(writer, colNames, kvs, sqlStr)
+	case "sql":
+		return writer, SQL(writer, targetTableForSQLFormat, colNames, kvs, sqlStr)
 	default:
 		for _, kv := range kvs {
 			lines := make([]string, 0)
