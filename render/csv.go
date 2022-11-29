@@ -42,7 +42,7 @@ func renderCSV(output io.Writer, noHeader bool, cols []extracter.Column, cb func
 	defer csvWriter.Flush()
 
 	if !noHeader {
-		colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
+		colNames := array.Map(cols, func(col extracter.Column, _ int) string { return col.Name })
 		if err := csvWriter.Write(colNames); err != nil {
 			return 0, err
 		}

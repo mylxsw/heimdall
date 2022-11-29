@@ -92,7 +92,7 @@ func (w *ExcelWriter) Write(data []string) (err error) {
 		w.rowNum++
 		if err := w.stream.SetRow(
 			"A"+strconv.Itoa(w.rowNum),
-			array.Map(w.headers, func(item string) interface{} { return item }),
+			array.Map(w.headers, func(item string, _ int) interface{} { return item }),
 		); err != nil {
 			return err
 		}
@@ -101,7 +101,7 @@ func (w *ExcelWriter) Write(data []string) (err error) {
 	w.rowNum++
 	return w.stream.SetRow(
 		"A"+strconv.Itoa(w.rowNum),
-		array.Map(data, func(item string) interface{} { return item }),
+		array.Map(data, func(item string, _ int) interface{} { return item }),
 	)
 }
 
@@ -115,7 +115,7 @@ func (w *ExcelWriter) Close() error {
 func streamRenderXlsx(output io.Writer, noHeader bool, cols []extracter.Column, stream <-chan map[string]interface{}) (total int, err error) {
 	tmpFilename := createTempFilename() + ".xlsx"
 
-	colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
+	colNames := array.Map(cols, func(col extracter.Column, _ int) string { return col.Name })
 	w, err := NewExcelWriter(tmpFilename, ternary.If(noHeader, []string{}, colNames))
 	if err != nil {
 		return 0, err

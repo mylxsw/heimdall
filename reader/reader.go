@@ -15,7 +15,7 @@ import (
 type FileWalker func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error
 
 func MergeWalkers(walkers ...FileWalker) FileWalker {
-	walkers = array.Filter(walkers, func(walker FileWalker) bool { return walker != nil })
+	walkers = array.Filter(walkers, func(walker FileWalker, i int) bool { return walker != nil })
 	if len(walkers) == 0 {
 		return nil
 	}

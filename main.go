@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -62,6 +63,13 @@ func main() {
 			UsageText: "heimdall import --tx --database example --table users --file users.csv --file users.xlsx --field 姓名:name --field 年龄:age",
 			Action:    commands.ImportCommand,
 			Flags:     commands.BuildImportFlags(),
+		},
+		{
+			Name:      "fly",
+			Usage:     "query data from input using sql",
+			UsageText: "heimdall fly --sql 'select * from table' --input users.csv",
+			Action:    commands.FlyCommand,
+			Flags:     commands.BuildFlyFlags(),
 		},
 		{
 			Name:  "version",
