@@ -2,7 +2,7 @@ Version := $(shell cat VERSION)
 GitCommit := $(shell git rev-parse HEAD)
 CompileTime := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 DIR := $(shell pwd)
-LDFLAGS := -s -w -X main.Version=$(Version) -X main.GitCommit=$(GitCommit) -X main.CompileTime=$(CompileTime) -X main.Debug=true
+LDFLAGS := -s -w -X main.Version=$(Version) -X main.GitCommit=$(GitCommit) -X main.CompileTime=$(CompileTime) -X main.Debug=false
 
 build:
 	go build -race -ldflags "$(LDFLAGS)" -o build/debug/heimdall main.go

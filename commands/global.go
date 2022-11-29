@@ -23,7 +23,7 @@ func readAll(r io.Reader, endSign byte) string {
 			panic(err)
 		}
 
-		if input == '\n' && result[len(result)-1] == endSign {
+		if input == '\n' && len(result) > 0 && result[len(result)-1] == endSign {
 			break
 		}
 

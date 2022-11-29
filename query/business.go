@@ -11,6 +11,11 @@ import (
 	"github.com/mylxsw/heimdall/render"
 )
 
+var (
+	SupportedStreamingFormats = []string{"csv", "json", "plain", "xlsx", "sql"}
+	SupportedStandardFormats  = []string{"csv", "json", "yaml", "xml", "table", "html", "markdown", "xlsx", "plain", "sql"}
+)
+
 // QueryWriteHandler is a function definition for query write handler
 type QueryWriteHandler func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error)
 
@@ -19,7 +24,7 @@ type QueryWriteHandler func(sqlStr string, args []interface{}, format string, ou
 // The SQL query and the writing of the results are all streamed to reduce memory usage
 func NewStreamingQueryWriter(dbConnStr string, targetTableForSQLFormat string, connectTimeout time.Duration) QueryWriteHandler {
 	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool) (int, error) {
-		if !array.In(format, []string{"csv", "json", "plain", "xlsx", "sql"}) {
+		if !array.In(format, SupportedStreamingFormats) {
 			return 0, fmt.Errorf("streaming only supports csv/json/plain/xlsx/sql format, the current format is %s", format)
 		}
 

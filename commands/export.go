@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
+	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
 	"github.com/mylxsw/heimdall/query"
@@ -28,9 +30,9 @@ type ExportOption struct {
 func BuildExportFlags() []cli.Flag {
 	return append(BuildGlobalFlags(), []cli.Flag{
 		&cli.StringFlag{Name: "sql", Aliases: []string{"s", "query"}, Value: "", Usage: "SQL statement(if not set, read from STDIN, end with ';')"},
-		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql"},
+		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
-		&cli.BoolFlag{Name: "streaming", Aliases: []string{"S"}, Value: false, Usage: "whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/xlsx/json/plain/sql"},
+		&cli.BoolFlag{Name: "streaming", Aliases: []string{"S"}, Value: false, Usage: "whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports " + strings.Join(query.SupportedStreamingFormats, ", ")},
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},
 		&cli.DurationFlag{Name: "query-timeout", Aliases: []string{"t"}, Value: 120 * time.Second, Usage: "query timeout, when the stream option is specified, this option is invalid"},
 		&cli.IntFlag{Name: "xlsx-max-row", Value: 1048576, Usage: "the maximum number of rows per sheet in an Excel file, including the row where the header is located"},
@@ -45,7 +47,7 @@ func resolveExportOption(c *cli.Context) ExportOption {
 	}
 
 	return ExportOption{
-		SQL:                     sqlStr,
+		SQL:                     strings.Trim(strings.TrimSpace(sqlStr), ";"),
 		Format:                  c.String("format"),
 		Output:                  c.String("output"),
 		Streaming:               c.Bool("streaming"),
@@ -64,8 +66,22 @@ func ExportCommand(c *cli.Context) error {
 	gOpt := resolveGlobalOption(c)
 	expOpt := resolveExportOption(c)
 
+	if expOpt.SQL == "" {
+		return fmt.Errorf("--sql or -s is required")
+	}
+
 	if expOpt.Format == "sql" && expOpt.TargetTableForSQLFormat == "" {
-		return fmt.Errorf("when the format is sql, the table name is required")
+		return fmt.Errorf("when the format is sql, the table name (--table) is required")
+	}
+
+	if expOpt.Streaming {
+		if !array.In(expOpt.Format, query.SupportedStreamingFormats) {
+			return fmt.Errorf("unsupport streaming output format: %s", expOpt.Format)
+		}
+	} else {
+		if !array.In(expOpt.Format, query.SupportedStandardFormats) {
+			return fmt.Errorf("unsupport output format: %s", expOpt.Format)
+		}
 	}
 
 	handler := ternary.IfLazy(

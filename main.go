@@ -22,6 +22,14 @@ var (
 )
 
 func main() {
+	if Debug != "true" {
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Fprintf(os.Stderr, "😨 %v\n", err)
+			}
+		}()
+	}
+
 	app := cli.NewApp()
 	app.Name = "heimdall"
 	app.Usage = "tools for database import and export(query)"
