@@ -67,7 +67,7 @@ func main() {
 		{
 			Name:      "fly",
 			Usage:     "query data from input using sql",
-			UsageText: "heimdall fly --sql 'select * from table' --input users.csv",
+			UsageText: `heimdall fly --file data.csv --file data2.csv --sql "SELECT table_0.entity_id '实体ID', table_0.name '实体名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.entity_id = table_1.entity_id WHERE table_1.deleted_at = '' GROUP BY table_0.entity_id ORDER BY count(*) DESC LIMIT 10" -f table`,
 			Action:    commands.FlyCommand,
 			Flags:     commands.BuildFlyFlags(),
 		},

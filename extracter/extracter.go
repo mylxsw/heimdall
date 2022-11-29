@@ -154,10 +154,13 @@ func parseValue(k interface{}, typ *sql.ColumnType) interface{} {
 		if s.Valid {
 			return s.Int64
 		}
+
+		return nil
 	case *sql.NullFloat64:
 		if s.Valid {
 			return s.Float64
 		}
+		return nil
 	case *sql.RawBytes:
 		if len(*s) > 0 {
 			switch ColumnType(typ.DatabaseTypeName()) {
@@ -168,14 +171,20 @@ func parseValue(k interface{}, typ *sql.ColumnType) interface{} {
 
 			return string(*s)
 		}
+
+		return nil
 	case *sql.NullString:
 		if s.Valid {
 			return s.String
 		}
+
+		return nil
 	case *sql.NullTime:
 		if s.Valid {
 			return s.Time
 		}
+
+		return nil
 	case **interface{}:
 		return **s
 	}

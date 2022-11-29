@@ -76,6 +76,34 @@ func FlyCommand(c *cli.Context) error {
 		return fmt.Errorf("--sql or -s is required")
 	}
 
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		return fmt.Errorf("create sqlite3 database failed: %w", err)
+	}
+	defer db.Close()
+
+	if err := createMemoryDatabaseForFly(opt, db); err != nil {
+		return err
+	}
+
+	w := ternary.IfElseLazy(opt.Output != "", func() io.WriteCloser {
+		return must.Must(os.Create(opt.Output))
+	}, func() io.WriteCloser {
+		return os.Stdout
+	})
+	defer w.Close()
+
+	handler := query.NewStandardQueryWriterWithDB(db, opt.TargetTableForSQLFormat, opt.QueryTimeout)
+	_, err = handler(opt.SQL, nil, opt.Format, w, opt.NoHeader)
+
+	return err
+}
+
+const (
+	memoryTableIDField = "____rowid"
+)
+
+func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) error {
 	walker := reader.MergeWalkers(array.Map(
 		opt.InputFiles,
 		func(f string, _ int) reader.FileWalker { return reader.CreateFileWalker(f, opt.CSVSepertor) })...,
@@ -84,26 +112,26 @@ func FlyCommand(c *cli.Context) error {
 		return fmt.Errorf("no file avaiable: only support csv or xlsx files")
 	}
 
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		return fmt.Errorf("create sqlite3 database failed: %w", err)
-	}
-	defer db.Close()
-
 	var tableName string
 	var tableFields []string
 	var index = 1
 	fileIndexs := array.BuildMap(opt.InputFiles, func(val string, i int) (string, int) { return val, i })
-	if err := walker(
+
+	return walker(
 		func(filepath string, headers []string) error {
 			tableName = fmt.Sprintf("table_%d", fileIndexs[filepath])
-			tableFields = append([]string{"_rowid"}, array.Map(headers, func(h string, _ int) string { return h })...)
+			tableFields = append([]string{memoryTableIDField}, array.Map(headers, func(h string, _ int) string { return h })...)
 
 			createSQL := fmt.Sprintf(
-				"CREATE TABLE %s (_rowid int PRIMARY KEY NOT NULL, %s);",
+				"CREATE TABLE %s (%s int PRIMARY KEY NOT NULL, %s);",
 				tableName,
+				memoryTableIDField,
 				strings.Join(array.Map(headers, func(h string, _ int) string { return fmt.Sprintf("%s TEXT", h) }), ","),
 			)
+
+			log.With(log.Fields{
+				"sql": createSQL,
+			}).Debugf("create table")
 
 			if _, err := db.Exec(createSQL); err != nil {
 				return fmt.Errorf("create table %s failed: %w", tableName, err)
@@ -127,17 +155,5 @@ func FlyCommand(c *cli.Context) error {
 
 			return nil
 		},
-	); err != nil {
-		return fmt.Errorf("walk file failed: %w", err)
-	}
-
-	w := ternary.IfElseLazy(opt.Output != "", func() io.WriteCloser {
-		return must.Must(os.Create(opt.Output))
-	}, func() io.WriteCloser {
-		return os.Stdout
-	})
-	defer w.Close()
-
-	_, err = query.NewStandardQueryWriterWithDB(db, opt.TargetTableForSQLFormat, opt.QueryTimeout)(opt.SQL, nil, opt.Format, w, opt.NoHeader)
-	return err
+	)
 }

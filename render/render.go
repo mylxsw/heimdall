@@ -93,7 +93,11 @@ func resolveValue(col extracter.Column, value interface{}) string {
 	case extracter.ColumnTypeDate:
 		return value.(time.Time).Format("2006-01-02")
 	case extracter.ColumnTypeDatetime, extracter.ColumnTypeTimestamp:
-		return value.(time.Time).Format("2006-01-02 15:04:05")
+		if v1, ok := value.(time.Time); ok {
+			return v1.Format("2006-01-02 15:04:05")
+		}
+
+		return ""
 	}
 
 	return fmt.Sprintf("%v", value)
