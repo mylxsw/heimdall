@@ -186,6 +186,10 @@ func parseValue(k interface{}, typ *sql.ColumnType) interface{} {
 
 		return nil
 	case **interface{}:
+		if s == nil || *s == nil {
+			return nil
+		}
+
 		return **s
 	}
 
