@@ -31,19 +31,19 @@ func MergeWalkers(walkers ...FileWalker) FileWalker {
 	}
 }
 
-func CreateFileWalker(filePath string, csvSepertor rune) FileWalker {
+func CreateFileWalker(filePath string, csvSepertor rune, onlyHeader bool) FileWalker {
 	if strings.HasSuffix(filePath, ".xlsx") {
-		return createExcelFileWalker(filePath)
+		return createExcelFileWalker(filePath, onlyHeader)
 	}
 
 	if strings.HasSuffix(filePath, ".csv") {
-		return createCSVFileWalker(filePath, csvSepertor)
+		return createCSVFileWalker(filePath, csvSepertor, onlyHeader)
 	}
 
 	return nil
 }
 
-func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
+func createCSVFileWalker(filePath string, csvSepertor rune, onlyHeader bool) FileWalker {
 	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
 		f, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 		if err != nil {
@@ -64,6 +64,10 @@ func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
 				return err
 			}
 
+			if onlyHeader && index > 1 {
+				break
+			}
+
 			if index == 1 {
 				if err := headerCB(filePath, record); err != nil {
 					log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
@@ -82,7 +86,7 @@ func createCSVFileWalker(filePath string, csvSepertor rune) FileWalker {
 	}
 }
 
-func createExcelFileWalker(filePath string) FileWalker {
+func createExcelFileWalker(filePath string, onlyHeader bool) FileWalker {
 	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
 		f, err := excelize.OpenFile(filePath)
 		if err != nil {
@@ -105,9 +109,11 @@ func createExcelFileWalker(filePath string) FileWalker {
 				return err
 			}
 
-			for rowNum, row := range rows[1:] {
-				if err := dataCB(filePath, fmt.Sprintf("%s#%d", sheet, rowNum), row); err != nil {
-					log.WithFields(log.Fields{"sheet": sheet, "row": rowNum, "file": filePath}).Errorf("handle data failed: %s", err)
+			if !onlyHeader {
+				for rowNum, row := range rows[1:] {
+					if err := dataCB(filePath, fmt.Sprintf("%s#%d", sheet, rowNum), row); err != nil {
+						log.WithFields(log.Fields{"sheet": sheet, "row": rowNum, "file": filePath}).Errorf("handle data failed: %s", err)
+					}
 				}
 			}
 		}

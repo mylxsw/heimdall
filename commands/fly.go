@@ -7,12 +7,15 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
+	"github.com/mozillazg/go-pinyin"
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
+	"github.com/mylxsw/heimdall/extracter"
 	"github.com/mylxsw/heimdall/query"
 	"github.com/mylxsw/heimdall/reader"
 	"github.com/urfave/cli/v2"
@@ -40,7 +43,7 @@ func BuildFlyFlags() []cli.Flag {
 		&cli.StringFlag{Name: "sql", Aliases: []string{"s", "query"}, Value: "", Usage: "SQL statement(if not set, read from STDIN, end with ';')"},
 		&cli.StringSliceFlag{Name: "file", Aliases: []string{"i", "input"}, Usage: "input excel or csv file path, this flag can be specified multiple times for importing multiple files at the same time", Required: true},
 		&cli.StringFlag{Name: "csv-sepertor", Value: ",", Usage: "csv file sepertor, default is ','"},
-		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
+		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "table", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},
 		&cli.DurationFlag{Name: "query-timeout", Aliases: []string{"t"}, Value: 120 * time.Second, Usage: "query timeout, when the stream option is specified, this option is invalid"},
@@ -48,7 +51,7 @@ func BuildFlyFlags() []cli.Flag {
 		&cli.StringFlag{Name: "table", Value: "", Usage: "when the format is sql, specify the table name"},
 		&cli.BoolFlag{Name: "use-column-num", Value: false, Usage: "use column number as column name, start from 0, for example: col_0, col_1, col_2..."},
 		&cli.BoolFlag{Name: "show-tables", Value: false, Usage: "show all tables in the database"},
-		&cli.StringFlag{Name: "temp-ds", Value: ":memory:", Usage: "the temporary database uri"},
+		&cli.StringFlag{Name: "temp-ds", Value: ":memory:", Usage: "the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html"},
 	}
 }
 
@@ -93,7 +96,7 @@ func FlyCommand(c *cli.Context) error {
 	}
 	defer db.Close()
 
-	tableNames, err := createMemoryDatabaseForFly(opt, db)
+	tables, err := createMemoryDatabaseForFly(opt, db)
 	if err != nil {
 		return err
 	}
@@ -101,10 +104,24 @@ func FlyCommand(c *cli.Context) error {
 	handler := query.NewStandardQueryWriterWithDB(db, opt.TargetTableForSQLFormat, opt.QueryTimeout)
 
 	if opt.ShowTables {
-		for i, tableName := range tableNames {
-			fmt.Printf("Table: %s ⇢ %s\n", tableName, opt.InputFiles[i])
+		for _, table := range tables {
+			fmt.Printf("◇ Table: %s ⇢ %s\n", table.Name, table.Filename)
 
-			if _, err := handler(fmt.Sprintf("PRAGMA table_info(%s)", tableName), nil, "table", os.Stdout, false); err != nil {
+			dataProcesser := func(r *extracter.Rows) {
+				r.Columns = append(append(append([]extracter.Column{}, r.Columns[0:1]...), extracter.Column{Name: "original"}), r.Columns[1:]...)
+
+				for i, row := range r.DataSets {
+					row["pk"] = ternary.If(row["pk"].(int64) > 0, "Y", "N")
+					row["notnull"] = ternary.If(row["notnull"].(int64) > 0, "Y", "N")
+
+					if i > 0 {
+						// row["name"] == memoryTableIDField
+						row["original"] = table.OriginalColumns[i-1]
+					}
+				}
+			}
+
+			if _, err := handler(fmt.Sprintf("PRAGMA table_info(%s)", table.Name), nil, "table", os.Stdout, false, dataProcesser); err != nil {
 				return err
 			}
 
@@ -120,7 +137,7 @@ func FlyCommand(c *cli.Context) error {
 	})
 	defer w.Close()
 
-	_, err = handler(opt.SQL, nil, opt.Format, w, opt.NoHeader)
+	_, err = handler(opt.SQL, nil, opt.Format, w, opt.NoHeader, nil)
 
 	return err
 }
@@ -129,31 +146,48 @@ const (
 	memoryTableIDField = "__rowid"
 )
 
-func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]string, error) {
+type Table struct {
+	Name            string
+	Filename        string
+	Columns         []string
+	OriginalColumns []string
+}
+
+func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 	walker := reader.MergeWalkers(array.Map(
 		opt.InputFiles,
-		func(f string, _ int) reader.FileWalker { return reader.CreateFileWalker(f, opt.CSVSepertor) })...,
+		func(f string, _ int) reader.FileWalker {
+			return reader.CreateFileWalker(f, opt.CSVSepertor, opt.ShowTables)
+		})...,
 	)
 	if walker == nil {
 		return nil, fmt.Errorf("no file avaiable: only support csv or xlsx files")
 	}
 
+	var tables = make([]Table, 0)
+
 	var tableName string
-	var tableFields, tableNames []string
+	var tableFields []string
 	var index = 1
 	fileIndexs := array.BuildMap(opt.InputFiles, func(val string, i int) (string, int) { return val, i })
 
 	err := walker(
 		func(filepath string, headers []string) error {
 			tableName = fmt.Sprintf("table_%d", fileIndexs[filepath])
-			tableNames = append(tableNames, tableName)
 			tableFields = append([]string{memoryTableIDField}, array.Map(headers, func(h string, i int) string {
 				if opt.UseColumnNumAsName {
 					return fmt.Sprintf("col_%d", i)
 				}
 
-				return h
+				return slugifyColumnName(h)
 			})...)
+
+			tables = append(tables, Table{
+				Name:            tableName,
+				Columns:         tableFields,
+				OriginalColumns: headers,
+				Filename:        filepath,
+			})
 
 			createSQL := fmt.Sprintf(
 				"CREATE TABLE %s (%s int PRIMARY KEY NOT NULL, %s);",
@@ -163,7 +197,7 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]string, error) {
 					if opt.UseColumnNumAsName {
 						return fmt.Sprintf("col_%d TEXT", i)
 					}
-					return fmt.Sprintf("%s TEXT", h)
+					return fmt.Sprintf("%s TEXT", slugifyColumnName(h))
 				}), ","),
 			)
 
@@ -195,5 +229,20 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]string, error) {
 		},
 	)
 
-	return array.Distinct(tableNames), err
+	return array.DistinctBy(tables, func(item Table) string { return item.Name }), err
+}
+
+func slugifyColumnName(name string) string {
+	arg := pinyin.NewArgs()
+	arg.Separator = ""
+	arg.Fallback = func(r rune, a pinyin.Args) []string {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || r == '_' {
+			return []string{string(r)}
+		}
+
+		return []string{}
+	}
+
+	p := strings.Join(pinyin.LazyPinyin(name, arg), "")
+	return strings.ReplaceAll(p, " ", "_")
 }

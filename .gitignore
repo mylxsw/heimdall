@@ -19,3 +19,4 @@ dist/
 *.csv
 *.xlsx
 *.log
+*.db
