@@ -6,11 +6,13 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jedib0t/go-pretty/v6 v6.4.2
 	github.com/mozillazg/go-pinyin v0.19.0
-	github.com/mylxsw/asteria v1.0.0
+	github.com/mylxsw/asteria v1.0.1
 	github.com/mylxsw/go-utils v1.0.3-0.20221130130901-c4f0289cd78c
 	github.com/urfave/cli/v2 v2.23.5
 	github.com/xuri/excelize/v2 v2.6.1
 )
+
+require github.com/thedatashed/xlsxreader v1.2.2
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
@@ -33,3 +35,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/thedatashed/xlsxreader v1.2.2 => github.com/mylxsw/xlsxreader v0.0.0-20221201044531-eea8957cca5d

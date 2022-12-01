@@ -9,6 +9,7 @@ import (
 
 	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/thedatashed/xlsxreader"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -31,8 +32,12 @@ func MergeWalkers(walkers ...FileWalker) FileWalker {
 	}
 }
 
-func CreateFileWalker(filePath string, csvSepertor rune, onlyHeader bool) FileWalker {
+func CreateFileWalker(filePath string, csvSepertor rune, onlyHeader bool, beta bool) FileWalker {
 	if strings.HasSuffix(filePath, ".xlsx") {
+		if beta {
+			return createExcelFileStreamWalker(filePath, onlyHeader)
+		}
+
 		return createExcelFileWalker(filePath, onlyHeader)
 	}
 
@@ -94,10 +99,15 @@ func createExcelFileWalker(filePath string, onlyHeader bool) FileWalker {
 		}
 		defer f.Close()
 
-		for _, sheet := range f.GetSheetList() {
+		for i, sheet := range f.GetSheetList() {
 			rows, err := f.GetRows(sheet)
 			if err != nil {
 				return err
+			}
+
+			if i > 0 && len(rows) > 0 {
+				log.Warningf("file %s has more than one sheet, only the first sheet will be processed", filePath)
+				break
 			}
 
 			if len(rows) < 2 {
@@ -114,6 +124,61 @@ func createExcelFileWalker(filePath string, onlyHeader bool) FileWalker {
 					if err := dataCB(filePath, fmt.Sprintf("%s#%d", sheet, rowNum), row); err != nil {
 						log.WithFields(log.Fields{"sheet": sheet, "row": rowNum, "file": filePath}).Errorf("handle data failed: %s", err)
 					}
+				}
+			}
+		}
+
+		return nil
+	}
+}
+
+func createExcelFileStreamWalker(filePath string, onlyHeader bool) FileWalker {
+	return func(headerCB func(filepath string, headers []string) error, dataCB func(filepath string, id string, data []string) error) error {
+		xl, err := xlsxreader.OpenFile(filePath)
+		if err != nil {
+			return err
+		}
+		defer xl.Close()
+
+		for i, sheet := range xl.Sheets {
+			var columnCount, index int
+			for row := range xl.ReadRows(sheet) {
+				index++
+				if i > 0 {
+					log.Warningf("file %s has more than one sheet, only the first sheet will be processed", filePath)
+					return nil
+				}
+
+				if onlyHeader && index > 1 {
+					break
+				}
+
+				if index == 1 {
+					values := array.Map(row.Cells, func(cell xlsxreader.Cell, _ int) string { return cell.Value })
+					columnCount = len(values)
+
+					if err := headerCB(filePath, values); err != nil {
+						log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
+						return err
+					}
+
+					continue
+				}
+
+				values := make([]string, columnCount)
+				for i, cell := range row.Cells {
+					if cell.ColumnIndex() == -1 {
+						values[i] = cell.Value
+					} else {
+						if cell.ColumnIndex() >= columnCount {
+							continue
+						}
+						values[cell.ColumnIndex()] = cell.Value
+					}
+				}
+
+				if err := dataCB(filePath, fmt.Sprintf("%s#%d", sheet, row.Index), values); err != nil {
+					log.WithFields(log.Fields{"index": row.Index, "file": filePath}).Errorf("handle data failed: %s", err)
 				}
 			}
 		}

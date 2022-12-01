@@ -28,10 +28,12 @@ github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
 github.com/mozillazg/go-pinyin v0.19.0 h1:p+J8/kjJ558KPvVGYLvqBhxf8jbZA2exSLCs2uUVN8c=
 github.com/mozillazg/go-pinyin v0.19.0/go.mod h1:iR4EnMMRXkfpFVV5FMi4FNB6wGq9NV6uDWbUuPhP4Yc=
-github.com/mylxsw/asteria v1.0.0 h1:1M9+/hNfKN5TNAeMfwCoxPt96pitYg2ytUO/9bwDzqk=
-github.com/mylxsw/asteria v1.0.0/go.mod h1:pmMRQjiOk1ZndmWnk7fDb4iIVrPhWCaWl6wV0R51zws=
+github.com/mylxsw/asteria v1.0.1 h1:M+RLL/0R0CkeRLwiaikBlLkEqO6rTpqqaMUhDVsZRqQ=
+github.com/mylxsw/asteria v1.0.1/go.mod h1:pmMRQjiOk1ZndmWnk7fDb4iIVrPhWCaWl6wV0R51zws=
 github.com/mylxsw/go-utils v1.0.3-0.20221130130901-c4f0289cd78c h1:jJp2HpOH1mSosOyF7YSmke4SWJuyXRJsiTcZbPezAf0=
 github.com/mylxsw/go-utils v1.0.3-0.20221130130901-c4f0289cd78c/go.mod h1:F5pQ/vTAgccZxQA7jsIBXM6m2INAbqPKfzbNwQgqhzY=
+github.com/mylxsw/xlsxreader v0.0.0-20221201044531-eea8957cca5d h1:wC9T1e8yCBOy/gWpZYjv4Dk2f4ulAgHHKbiODtZXFEM=
+github.com/mylxsw/xlsxreader v0.0.0-20221201044531-eea8957cca5d/go.mod h1:iX7fe2DvQFg5fyJKi/C+V6gBXVUExXaZEOwaVQkbODQ=
 github.com/pkg/profile v1.6.0/go.mod h1:qBsxPvzyUincmltOk6iyRVxHYg4adc0OFOv72ZdLa18=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

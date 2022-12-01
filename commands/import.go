@@ -125,7 +125,9 @@ func ImportCommand(c *cli.Context) error {
 
 	walker := reader.MergeWalkers(array.Map(
 		opt.InputFiles,
-		func(f string, _ int) reader.FileWalker { return reader.CreateFileWalker(f, opt.CSVSepertor, false) })...,
+		func(f string, _ int) reader.FileWalker {
+			return reader.CreateFileWalker(f, opt.CSVSepertor, false, false)
+		})...,
 	)
 	if walker == nil {
 		return fmt.Errorf("no file avaiable: only support csv or xlsx files")
