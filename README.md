@@ -4,7 +4,7 @@
 ![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=mariadb&logoColor=white) ![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=for-the-badge&logo=mysql&logoColor=white) ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white) 
 
 
-Heimdall is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/SQL/text, etc.
+Heimdall is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats, convert xlsx/csv to other formats, query xlsx/csv file using sql. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/SQL/text, etc.
 
 ## Command Line Options
 
@@ -12,10 +12,19 @@ Heimdall is a database tools specially designed for MySQL. Using it, you can dir
 
 - **import** (aka **load**) data from xlsx or csv file to database table
 - **export** (aka **query**) SQL query results to various file formats
+- **fly** (aka **query-file**) query data from input file using sql directly
+- **convert** convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql
 
 ### import/load
 
 Using **import/load** command, you can import data from xlsx or csv file to a table.
+
+```bash
+heimdall import --tx --database example --table users \
+    --file users.csv --file users.xlsx \
+    --field 姓名:name \
+    --field 年龄:age
+```
 
 The following command line options are supported：
 
@@ -40,6 +49,10 @@ The following command line options are supported：
 
 Using **export/query** command, you can export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text, etc. 
 
+```bash
+heimdall export --database example --format json --sql 'select * from users'
+```
+
 The following command line options are supported：
 
 - **--host value**, **-H value** MySQL host (default: "127.0.0.1")
@@ -58,6 +71,55 @@ The following command line options are supported：
 - **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
 - **--table value** when the format is sql, specify the table name
 - **--help**, **-h** show help (default: false)
+
+### fly/query-file
+
+Using **fly/query-file** command, you can query data from input file using sql directly.
+
+```bash
+heimdall fly --file data.csv --file data2.csv \
+    --sql "SELECT table_0.id 'ID', table_0.name '名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.id = table_1.ref_id WHERE table_1.deleted_at = '' GROUP BY table_0.id ORDER BY count(*) DESC LIMIT 10" \
+    -f table
+```
+
+The following command line options are supported：
+
+- **--sql value**, **-s value**, **--query value** SQL statement(if not set, read from STDIN, end with ';')
+- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, this flag can be specified multiple times for importing multiple files at the same time
+- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
+- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
+- **--output value**, **-o value** write output to a file, default output directly to STDOUT
+- **--no-header**, **-n** do not write table header (default: false)
+- **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
+- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located - **(default: 1048576)
+- **--table value** when the format is sql, specify the table name
+- **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
+- **--show-tables** show all tables in the database (default: false)
+- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/- **open.html (default: ":memory:")
+- **--slient** do not print warning log (default: false)
+- **--debug**, **-D** Debug mode (default: false)
+
+### convert
+
+Using **convert** command, you can convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql.
+
+```bash
+heimdall convert --file data.csv --format json --include id --include name --include updated_at
+```
+
+The following command line options are supported：
+
+- **--file value**, **-i value**, **--input value** input excel or csv file path
+- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
+- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
+- **--output value**, **-o value** write output to a file, default output directly to STDOUT
+- **--no-header, -n** do not write table header (default: false)
+- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
+- **--table value** when the format is sql, specify the table name
+- **--slient** do not print warning log (default: false)
+- **--debug, -D** Debug mode (default: false)
+- **--include value**, **-I value** *[ --include value, -I value ]* include fields, if set, only these fields will be output, this flag can be specified multiple times
+- **--exclude value**, **-E value** *[ --exclude value, -E value ]* exclude fields, if set, these fields will be ignored, this flag can be specified multiple times
 
 ## Examples
 
