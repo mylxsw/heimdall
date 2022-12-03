@@ -108,7 +108,14 @@ func Render(format string, noHeader bool, cols []extracter.Column, kvs []map[str
 
 	switch format {
 	case "json":
-		return writer, JSON(writer, kvs)
+		for _, item := range kvs {
+			if err := JSON(writer, item); err != nil {
+				return nil, err
+			}
+			fmt.Fprintf(writer, "\n")
+		}
+
+		return writer, nil
 	case "yaml":
 		return writer, YAML(writer, kvs)
 	case "table":

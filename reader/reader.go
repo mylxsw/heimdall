@@ -74,7 +74,7 @@ func createCSVFileWalker(filePath string, csvSepertor rune, onlyHeader bool) Fil
 			}
 
 			if index == 1 {
-				if err := headerCB(filePath, record); err != nil {
+				if err := headerCB(filePath, array.Map(record, func(item string, _ int) string { return clean(item) })); err != nil {
 					log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
 					return err
 				}
@@ -114,7 +114,7 @@ func createExcelFileWalker(filePath string, onlyHeader bool) FileWalker {
 				continue
 			}
 
-			if err := headerCB(filePath, rows[0]); err != nil {
+			if err := headerCB(filePath, array.Map(rows[0], func(item string, _ int) string { return clean(item) })); err != nil {
 				log.WithFields(log.Fields{"file": filePath}).Errorf("handle header failed: %s", err)
 				return err
 			}
@@ -154,7 +154,7 @@ func createExcelFileStreamWalker(filePath string, onlyHeader bool) FileWalker {
 				}
 
 				if index == 1 {
-					values := array.Map(row.Cells, func(cell xlsxreader.Cell, _ int) string { return cell.Value })
+					values := array.Map(row.Cells, func(cell xlsxreader.Cell, _ int) string { return clean(cell.Value) })
 					columnCount = len(values)
 
 					if err := headerCB(filePath, values); err != nil {
@@ -185,4 +185,11 @@ func createExcelFileStreamWalker(filePath string, onlyHeader bool) FileWalker {
 
 		return nil
 	}
+}
+
+func clean(str string) string {
+	// What is this char? 65279 ''
+	// https://en.wikipedia.org/wiki/Byte_order_mark
+	// https://stackoverflow.com/questions/6784799/what-is-this-char-65279
+	return strings.TrimSpace(strings.Trim(str, "\uFEFF"))
 }

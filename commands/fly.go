@@ -28,6 +28,7 @@ type FlyOption struct {
 	InputFiles  []string
 	CSVSepertor rune
 	Slient      bool
+	Debug       bool
 
 	Format                  string
 	Output                  string
@@ -56,6 +57,7 @@ func BuildFlyFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "show-tables", Value: false, Usage: "show all tables in the database"},
 		&cli.StringFlag{Name: "temp-ds", Value: ":memory:", Usage: "the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html"},
 		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log"},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
 	}
 }
 
@@ -81,13 +83,14 @@ func resolveFlyOption(c *cli.Context) FlyOption {
 		ShowTables:              showTables,
 		TempDS:                  c.String("temp-ds"),
 		Slient:                  c.Bool("slient"),
+		Debug:                   c.Bool("debug"),
 	}
 }
 
 func FlyCommand(c *cli.Context) error {
 	opt := resolveFlyOption(c)
 
-	if !c.Bool("debug") {
+	if !opt.Debug {
 		log.All().LogLevel(level.Info)
 	}
 
