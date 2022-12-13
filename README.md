@@ -91,7 +91,7 @@ The following command line options are supported：
 - **--output value**, **-o value** write output to a file, default output directly to STDOUT
 - **--no-header**, **-n** do not write table header (default: false)
 - **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
-- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located - **(default: 1048576)
+- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
 - **--table value** when the format is sql, specify the table name
 - **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
 - **--show-tables** show all tables in the database (default: false)
