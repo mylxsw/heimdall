@@ -4,14 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/heimdall/commands"
+	"github.com/mylxsw/heimdall/query"
 	"github.com/urfave/cli/v2"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -62,6 +65,21 @@ func main() {
 			UsageText: "heimdall import --tx --database example --table users --file users.csv --file users.xlsx --field 姓名:name --field 年龄:age",
 			Action:    commands.ImportCommand,
 			Flags:     commands.BuildImportFlags(),
+		},
+		{
+			Name:      "fly",
+			Aliases:   []string{"query-file"},
+			Usage:     "query data from input file using sql directly",
+			UsageText: `heimdall fly --file data.csv --file data2.csv --sql "SELECT table_0.id 'ID', table_0.name '名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.id = table_1.ref_id WHERE table_1.deleted_at = '' GROUP BY table_0.id ORDER BY count(*) DESC LIMIT 10" -f table`,
+			Action:    commands.FlyCommand,
+			Flags:     commands.BuildFlyFlags(),
+		},
+		{
+			Name:      "convert",
+			Usage:     "convert data from xlsx/csv to other formats: " + strings.Join(query.SupportedStandardFormats, ", "),
+			UsageText: `heimdall convert --file data.csv --format json --include id --include name --include updated_at`,
+			Action:    commands.ConvertCommand,
+			Flags:     commands.BuildConvertFlags(),
 		},
 		{
 			Name:  "version",

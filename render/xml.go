@@ -31,7 +31,7 @@ func XML(w io.Writer, cols []extracter.Column, data []map[string]interface{}, sq
 	result := XMLResultSet{
 		Statement: sqlStr,
 		XMLNS:     "http://www.w3.org/2001/XMLSchema-instance",
-		Value: array.Map(data, func(item map[string]interface{}) XMLRow {
+		Value: array.Map(data, func(item map[string]interface{}, _ int) XMLRow {
 			row := XMLRow{Value: make([]XMLField, 0)}
 			for k, v := range item {
 				row.Value = append(row.Value, XMLField{

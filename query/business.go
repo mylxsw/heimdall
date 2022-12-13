@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/heimdall/extracter"
 	"github.com/mylxsw/heimdall/render"
 )
 
@@ -60,6 +61,33 @@ func NewStandardQueryWriter(dbConnStr string, targetTableForSQLFormat string, co
 		rs, err := Query(dbConnStr, sqlStr, args, connectTimeout, queryTimeout)
 		if err != nil {
 			return 0, err
+		}
+
+		writer, err := render.Render(format, noHeader, rs.Columns, rs.DataSets, sqlStr, targetTableForSQLFormat)
+		if err != nil {
+			return 0, err
+		}
+
+		if _, err := writer.WriteTo(output); err != nil {
+			return 0, err
+		}
+
+		return len(rs.DataSets), nil
+	}
+}
+
+// NewStandardQueryWriterWithDB create a function that executes SQL in the database
+// and writes the returned results to a file in the specified format.
+// Querying and writing are done at one time, and all intermediate process data will be loaded into memory
+func NewStandardQueryWriterWithDB(db *sql.DB, targetTableForSQLFormat string, queryTimeout time.Duration) func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool, dataProcesser func(*extracter.Rows)) (int, error) {
+	return func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool, dataProcesser func(*extracter.Rows)) (int, error) {
+		rs, err := QueryDB(db, sqlStr, args, queryTimeout)
+		if err != nil {
+			return 0, err
+		}
+
+		if dataProcesser != nil {
+			dataProcesser(rs)
 		}
 
 		writer, err := render.Render(format, noHeader, rs.Columns, rs.DataSets, sqlStr, targetTableForSQLFormat)

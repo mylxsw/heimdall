@@ -15,3 +15,8 @@ Makefile.local
 build/
 tmp/
 dist/
+
+*.csv
+*.xlsx
+*.log
+*.db

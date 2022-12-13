@@ -48,7 +48,7 @@ func resolveImportOption(c *cli.Context) ImportOption {
 	}
 
 	return ImportOption{
-		InputFiles:  array.Filter(c.StringSlice("file"), func(f string) bool { return f != "" }),
+		InputFiles:  array.Filter(c.StringSlice("file"), func(f string, i int) bool { return f != "" }),
 		Table:       c.String("table"),
 		FieldsMap:   fieldsMap,
 		Includes:    includes,
@@ -125,7 +125,9 @@ func ImportCommand(c *cli.Context) error {
 
 	walker := reader.MergeWalkers(array.Map(
 		opt.InputFiles,
-		func(f string) reader.FileWalker { return reader.CreateFileWalker(f, opt.CSVSepertor) })...,
+		func(f string, _ int) reader.FileWalker {
+			return reader.CreateFileWalker(f, opt.CSVSepertor, false, false)
+		})...,
 	)
 	if walker == nil {
 		return fmt.Errorf("no file avaiable: only support csv or xlsx files")
@@ -245,7 +247,7 @@ func importData(tx Tx, table string, fieldMap map[string]string, fileWalker read
 				}
 			}
 
-			if len(array.Filter(args, func(arg interface{}) bool { return arg != nil })) == 0 {
+			if len(array.Filter(args, func(arg interface{}, _ int) bool { return arg != nil })) == 0 {
 				log.WithFields(log.Fields{"file": filepath}).Warningf("skip empty row: %s", id)
 				return nil
 			}

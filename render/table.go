@@ -34,9 +34,9 @@ func render(writer io.Writer, noHeader bool, cols []extracter.Column, kvs []map[
 	t := table.NewWriter()
 	t.SetOutputMirror(writer)
 	if !noHeader {
-		t.AppendHeader(array.Map(cols, func(col extracter.Column) interface{} { return col.Name }))
+		t.AppendHeader(array.Map(cols, func(col extracter.Column, _ int) interface{} { return col.Name }))
 	}
-	t.AppendRows(array.Map(kvs, func(kv map[string]interface{}) table.Row {
+	t.AppendRows(array.Map(kvs, func(kv map[string]interface{}, _ int) table.Row {
 		row := table.Row{}
 		for _, col := range cols {
 			if v, ok := kv[col.Name]; ok && v != nil {

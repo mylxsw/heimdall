@@ -17,7 +17,7 @@ func buildSQLInsertStr(targetTableForSQLFormat string, cols []extracter.Column, 
 		colValues = append(colValues, buildSQLValue(col, item[col.Name]))
 	}
 
-	colNames := array.Map(cols, func(col extracter.Column) string { return col.Name })
+	colNames := array.Map(cols, func(col extracter.Column, _ int) string { return col.Name })
 	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s);\n", targetTableForSQLFormat, strings.Join(colNames, ","), strings.Join(colValues, ","))
 }
 

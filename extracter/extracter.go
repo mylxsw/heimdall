@@ -56,7 +56,7 @@ func ExtractStream(rows *sql.Rows) ([]Column, <-chan map[string]interface{}, err
 		return nil, nil, err
 	}
 
-	columnNames := array.Map(types, func(t *sql.ColumnType) Column {
+	columnNames := array.Map(types, func(t *sql.ColumnType, _ int) Column {
 		return Column{
 			Name:     t.Name(),
 			Type:     ColumnType(t.DatabaseTypeName()),
@@ -69,7 +69,7 @@ func ExtractStream(rows *sql.Rows) ([]Column, <-chan map[string]interface{}, err
 		defer close(dataSetChan)
 
 		for rows.Next() {
-			var data = array.Map(types, func(item *sql.ColumnType) interface{} {
+			var data = array.Map(types, func(item *sql.ColumnType, _ int) interface{} {
 				return reflect.New(reflectColumnType(item)).Interface()
 			})
 
@@ -77,7 +77,7 @@ func ExtractStream(rows *sql.Rows) ([]Column, <-chan map[string]interface{}, err
 				panic(err)
 			}
 
-			rowRaw := array.MapWithIndex(data, func(k interface{}, index int) interface{} {
+			rowRaw := array.Map(data, func(k interface{}, index int) interface{} {
 				return parseValue(k, types[index])
 			})
 
@@ -154,6 +154,7 @@ func parseValue(k interface{}, typ *sql.ColumnType) interface{} {
 		if s.Valid {
 			return s.Int64
 		}
+
 		return nil
 	case *sql.NullFloat64:
 		if s.Valid {
@@ -170,20 +171,29 @@ func parseValue(k interface{}, typ *sql.ColumnType) interface{} {
 
 			return string(*s)
 		}
+
 		return nil
 	case *sql.NullString:
 		if s.Valid {
 			return s.String
 		}
+
 		return nil
 	case *sql.NullTime:
 		if s.Valid {
 			return s.Time
 		}
+
 		return nil
+	case **interface{}:
+		if s == nil || *s == nil {
+			return nil
+		}
+
+		return **s
 	}
 
-	return nil
+	return fmt.Sprintf("%v", k)
 }
 
 // Extract export sql rows to Rows object

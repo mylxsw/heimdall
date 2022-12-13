@@ -30,7 +30,7 @@ type ExportOption struct {
 func BuildExportFlags() []cli.Flag {
 	return append(BuildGlobalFlags(), []cli.Flag{
 		&cli.StringFlag{Name: "sql", Aliases: []string{"s", "query"}, Value: "", Usage: "SQL statement(if not set, read from STDIN, end with ';')"},
-		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "csv", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
+		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "table", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
 		&cli.BoolFlag{Name: "streaming", Aliases: []string{"S"}, Value: false, Usage: "whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports " + strings.Join(query.SupportedStreamingFormats, ", ")},
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},

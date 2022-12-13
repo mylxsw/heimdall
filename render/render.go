@@ -93,7 +93,11 @@ func resolveValue(col extracter.Column, value interface{}) string {
 	case extracter.ColumnTypeDate:
 		return value.(time.Time).Format("2006-01-02")
 	case extracter.ColumnTypeDatetime, extracter.ColumnTypeTimestamp:
-		return value.(time.Time).Format("2006-01-02 15:04:05")
+		if v1, ok := value.(time.Time); ok {
+			return v1.Format("2006-01-02 15:04:05")
+		}
+
+		return ""
 	}
 
 	return fmt.Sprintf("%v", value)
@@ -104,7 +108,14 @@ func Render(format string, noHeader bool, cols []extracter.Column, kvs []map[str
 
 	switch format {
 	case "json":
-		return writer, JSON(writer, kvs)
+		for _, item := range kvs {
+			if err := JSON(writer, item); err != nil {
+				return nil, err
+			}
+			fmt.Fprintf(writer, "\n")
+		}
+
+		return writer, nil
 	case "yaml":
 		return writer, YAML(writer, kvs)
 	case "table":
