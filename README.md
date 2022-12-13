@@ -95,7 +95,7 @@ The following command line options are supported：
 - **--table value** when the format is sql, specify the table name
 - **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
 - **--show-tables** show all tables in the database (default: false)
-- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/- **open.html (default: ":memory:")
+- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html (default: ":memory:")
 - **--slient** do not print warning log (default: false)
 - **--debug**, **-D** Debug mode (default: false)
 
