@@ -195,8 +195,14 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 	var index = 1
 	fileIndexs := array.BuildMap(opt.InputFiles, func(val string, i int) (string, int) { return val, i })
 
+	bar := NewProgressbar(!opt.Slient, "Initializing ...")
+	defer bar.Clear()
+
 	err := walker(
 		func(filepath string, headers []string) error {
+			bar.Describe("Loading ...")
+			bar.Add(1)
+
 			tableName = fmt.Sprintf("table_%d", fileIndexs[filepath])
 			fields := array.Map(headers, func(h string, i int) string {
 				if opt.UseColumnNumAsName {
@@ -246,7 +252,10 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 				return nil
 			}
 
-			defer func() { index++ }()
+			defer func() {
+				index++
+				bar.Add(1)
+			}()
 
 			maxSize := ternary.If(len(data) > (len(tableFields)-1), len(tableFields)-1, len(data))
 
