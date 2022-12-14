@@ -15,6 +15,7 @@ import (
 	"github.com/mylxsw/asteria/level"
 	"github.com/mylxsw/asteria/log"
 	"github.com/mylxsw/go-utils/array"
+	"github.com/mylxsw/go-utils/maps"
 	"github.com/mylxsw/go-utils/must"
 	"github.com/mylxsw/go-utils/ternary"
 	"github.com/mylxsw/heimdall/extracter"
@@ -45,7 +46,7 @@ type FlyOption struct {
 func BuildFlyFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{Name: "sql", Aliases: []string{"s", "query"}, Value: "", Usage: "SQL statement(if not set, read from STDIN, end with ';')"},
-		&cli.StringSliceFlag{Name: "file", Aliases: []string{"i", "input"}, Usage: "input excel or csv file path, this flag can be specified multiple times for importing multiple files at the same time", Required: true},
+		&cli.StringSliceFlag{Name: "file", Aliases: []string{"i", "input"}, Usage: "input excel or csv file path, you can use the form TABLE:FILE to specify the table name corresponding to the file, this flag can be specified multiple times for importing multiple files at the same time", Required: true},
 		&cli.StringFlag{Name: "csv-sepertor", Value: ",", Usage: "csv file sepertor, default is ','"},
 		&cli.StringFlag{Name: "format", Aliases: []string{"f"}, Value: "table", Usage: "output format, support " + strings.Join(query.SupportedStandardFormats, ", ")},
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
@@ -147,7 +148,12 @@ func showTables(tables []Table, handler func(sqlStr string, args []interface{}, 
 		fmt.Printf("\n◇ Table: %s ⇢ %s\n", table.Name, table.Filename)
 
 		dataProcesser := func(r *extracter.Rows) {
-			r.Columns = append(append(append([]extracter.Column{}, r.Columns[0:1]...), extracter.Column{Name: "original"}), r.Columns[1:]...)
+			r.Columns = array.Filter(
+				append(append(append([]extracter.Column{}, r.Columns[0:1]...), extracter.Column{Name: "original"}), r.Columns[1:]...),
+				func(col extracter.Column, _ int) bool {
+					return !strings.EqualFold(col.Name, "dflt_value")
+				},
+			)
 
 			for i, row := range r.DataSets {
 				row["pk"] = ternary.If(row["pk"].(int64) > 0, "Y", "N")
@@ -254,32 +260,42 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 	}
 
 	tableMetas := array.BuildMap(opt.InputFiles, func(val string, i int) (string, Table) {
-		return val, Table{
-			Name:     fmt.Sprintf("table_%d", must.Must(queryMaxMetaID(db))+i),
-			Filename: val,
-			Hash:     must.Must(fileHash(val)),
+		var tableName, filename string
+		segs := strings.SplitN(val, ":", 2)
+		if len(segs) == 2 {
+			tableName = segs[0]
+			filename = segs[1]
+		} else {
+			tableName = fmt.Sprintf("table_%d", must.Must(queryMaxMetaID(db))+i)
+			filename = val
+		}
+
+		return filename, Table{
+			Name:     tableName,
+			Filename: filename,
+			Hash:     must.Must(fileHash(filename)),
 		}
 	})
 
 	// 过滤需要更新的文件，如果文件 hash 和数据库中原有的一致，则不需要更新
-	inputFiles := array.Filter(opt.InputFiles, func(f string, _ int) bool {
-		meta := must.Must(queryMeta(db, f))
+	inputFiles := array.FromMap(maps.Filter(tableMetas, func(t Table, _ string) bool {
+		meta := must.Must(queryMeta(db, t.Filename))
 		if meta == nil {
 			return true
 		}
 
-		if meta.Hash != tableMetas[f].Hash {
+		if meta.Hash != t.Hash {
 			return true
 		}
 
 		return false
-	})
+	}))
 
 	if len(inputFiles) > 0 {
 		walker := reader.MergeWalkers(array.Map(
 			inputFiles,
-			func(f string, _ int) reader.FileWalker {
-				return reader.CreateFileWalker(f, opt.CSVSepertor, opt.ShowTables && opt.TempDS == ":memory:", opt.ShowTables)
+			func(t Table, _ int) reader.FileWalker {
+				return reader.CreateFileWalker(t.Filename, opt.CSVSepertor, opt.ShowTables && opt.TempDS == ":memory:", opt.ShowTables)
 			})...,
 		)
 		if walker == nil {

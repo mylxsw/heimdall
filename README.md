@@ -85,7 +85,7 @@ heimdall fly --file data.csv --file data2.csv \
 The following command line options are supported：
 
 - **--sql value**, **-s value**, **--query value** SQL statement(if not set, read from STDIN, end with ';')
-- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, this flag can be specified multiple times for importing multiple files at the same time
+- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, you can use the form TABLE:FILE to specify the table name corresponding to the file, this flag can be specified multiple times for importing multiple files at the same time
 - **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
 - **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
 - **--output value**, **-o value** write output to a file, default output directly to STDOUT
