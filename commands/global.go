@@ -2,7 +2,10 @@ package commands
 
 import (
 	"bufio"
+	"crypto/md5"
+	"encoding/hex"
 	"io"
+	"os"
 	"time"
 
 	"github.com/mylxsw/heimdall/query"
@@ -75,4 +78,19 @@ func resolveGlobalOption(c *cli.Context) GlobalOption {
 		Debug:          c.Bool("debug"),
 		ConnectTimeout: c.Duration("connect-timeout"),
 	}
+}
+
+func fileHash(filepath string) (string, error) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

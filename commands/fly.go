@@ -139,6 +139,10 @@ func FlyCommand(c *cli.Context) error {
 }
 
 func showTables(tables []Table, handler func(sqlStr string, args []interface{}, format string, output io.Writer, noHeader bool, dataProcesser func(*extracter.Rows)) (int, error)) error {
+	if _, err := handler("SELECT filename file, name 'table', created_at FROM meta", nil, "table", os.Stdout, false, nil); err != nil {
+		return err
+	}
+
 	for _, table := range tables {
 		fmt.Printf("\n◇ Table: %s ⇢ %s\n", table.Name, table.Filename)
 
@@ -173,106 +177,220 @@ const (
 type Table struct {
 	Name            string
 	Filename        string
+	Hash            string
 	Columns         []string
 	OriginalColumns []string
 }
 
-func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
-	walker := reader.MergeWalkers(array.Map(
-		opt.InputFiles,
-		func(f string, _ int) reader.FileWalker {
-			return reader.CreateFileWalker(f, opt.CSVSepertor, opt.ShowTables, opt.ShowTables)
-		})...,
-	)
-	if walker == nil {
-		return nil, fmt.Errorf("no file avaiable: only support csv or xlsx files")
+// queryMaxMetaID query max meta id from database
+func queryMaxMetaID(db *sql.DB) (int, error) {
+	row := db.QueryRow("SELECT MAX(id) FROM meta")
+	var maxID sql.NullInt64
+	if err := row.Scan(&maxID); err != nil {
+		return 0, fmt.Errorf("query max meta id failed: %w", err)
 	}
 
-	var tables = make([]Table, 0)
+	return int(maxID.Int64), nil
+}
 
-	var tableName string
-	var tableFields []string
-	var index = 1
-	fileIndexs := array.BuildMap(opt.InputFiles, func(val string, i int) (string, int) { return val, i })
+// queryMeta query meta from database
+func queryMeta(db *sql.DB, filename string) (*Table, error) {
+	row := db.QueryRow("SELECT filename, hash, name, columns, original_columns FROM meta WHERE filename = ?", filename)
+	var meta Table
+	var originalColumns, columns string
+	if err := row.Scan(&meta.Filename, &meta.Hash, &meta.Name, &columns, &originalColumns); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 
-	bar := NewProgressbar(!opt.Slient, "Initializing ...")
-	defer bar.Clear()
+		return nil, fmt.Errorf("query meta failed: %w", err)
+	}
 
-	err := walker(
-		func(filepath string, headers []string) error {
-			bar.Describe("Loading ...")
-			bar.Add(1)
+	meta.Columns = strings.Split(columns, ",")
+	meta.OriginalColumns = strings.Split(originalColumns, ",")
 
-			tableName = fmt.Sprintf("table_%d", fileIndexs[filepath])
-			fields := array.Map(headers, func(h string, i int) string {
-				if opt.UseColumnNumAsName {
-					return fmt.Sprintf("col_%d", i+1)
-				}
-				name := slugifyColumnName(h)
-				if name == "" || len(name) > maxColumnNameLength {
-					log.Warningf("column name [%s] is invalid (empty or too long), use col_%d instead", extracter.Sanitize(h), i+1)
-					return fmt.Sprintf("col_%d", i+1)
-				}
+	return &meta, nil
+}
 
-				if !unicode.IsLetter(rune(name[0])) {
-					log.Warningf("column name [%s] is invalid, use col_%d instead", extracter.Sanitize(h), i+1)
-					name = fmt.Sprintf("col_%d", i+1)
-				}
+// queryMetas query all metas from database
+func queryMetas(db *sql.DB) ([]Table, error) {
+	rows, err := db.Query("SELECT filename, hash, name, columns, original_columns FROM meta")
+	if err != nil {
+		return nil, fmt.Errorf("query metas failed: %w", err)
+	}
+	defer rows.Close()
 
-				return name
-			})
+	var metas []Table
+	for rows.Next() {
+		var meta Table
+		var originalColumns, columns string
+		if err := rows.Scan(&meta.Filename, &meta.Hash, &meta.Name, &columns, &originalColumns); err != nil {
+			return nil, fmt.Errorf("scan meta failed: %w", err)
+		}
 
-			tableFields = append([]string{memoryTableIDField}, fields...)
-			tables = append(tables, Table{
-				Name:            tableName,
-				Columns:         tableFields,
-				OriginalColumns: headers,
-				Filename:        filepath,
-			})
+		meta.Columns = strings.Split(columns, ",")
+		meta.OriginalColumns = strings.Split(originalColumns, ",")
 
-			createSQL := fmt.Sprintf(
-				"CREATE TABLE %s (%s int PRIMARY KEY NOT NULL, %s);",
-				tableName,
-				memoryTableIDField,
-				strings.Join(fields, ","),
-			)
+		metas = append(metas, meta)
+	}
 
-			if _, err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s;", tableName)); err != nil {
-				return fmt.Errorf("drop table %s failed: %w", tableName, err)
-			}
+	return metas, nil
+}
 
-			if _, err := db.Exec(createSQL); err != nil {
-				return fmt.Errorf("create table %s failed: %w", tableName, err)
-			}
+// initMemoryDatabaseMeta init meta table
+func initMemoryDatabaseMeta(opt FlyOption, db *sql.DB) error {
+	createSQL := `CREATE TABLE IF NOT EXISTS meta (id int PRIMARY KEY NOT NULL, filename, hash, name, columns, original_columns, created_at);`
+	if _, err := db.Exec(createSQL); err != nil {
+		return fmt.Errorf("create meta table failed: %w", err)
+	}
 
-			return nil
-		},
-		func(filepath string, id string, data []string) error {
-			if opt.ShowTables {
-				return nil
-			}
+	return nil
+}
 
-			defer func() {
-				index++
+// createMemoryDatabaseForFly create memory database
+func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
+	if err := initMemoryDatabaseMeta(opt, db); err != nil {
+		return nil, err
+	}
+
+	tableMetas := array.BuildMap(opt.InputFiles, func(val string, i int) (string, Table) {
+		return val, Table{
+			Name:     fmt.Sprintf("table_%d", must.Must(queryMaxMetaID(db))+i),
+			Filename: val,
+			Hash:     must.Must(fileHash(val)),
+		}
+	})
+
+	// 过滤需要更新的文件，如果文件 hash 和数据库中原有的一致，则不需要更新
+	inputFiles := array.Filter(opt.InputFiles, func(f string, _ int) bool {
+		meta := must.Must(queryMeta(db, f))
+		if meta == nil {
+			return true
+		}
+
+		if meta.Hash != tableMetas[f].Hash {
+			return true
+		}
+
+		return false
+	})
+
+	if len(inputFiles) > 0 {
+		walker := reader.MergeWalkers(array.Map(
+			inputFiles,
+			func(f string, _ int) reader.FileWalker {
+				return reader.CreateFileWalker(f, opt.CSVSepertor, opt.ShowTables && opt.TempDS == ":memory:", opt.ShowTables)
+			})...,
+		)
+		if walker == nil {
+			return nil, fmt.Errorf("no file avaiable: only support csv or xlsx files")
+		}
+
+		var currentTableName string
+		var currentTableFields []string
+		var recordIndex = 1
+
+		bar := NewProgressbar(!opt.Slient, "Initializing ...")
+		defer bar.Clear()
+
+		if err := walker(
+			func(filepath string, headers []string) error {
+				bar.Describe("Loading ...")
 				bar.Add(1)
-			}()
 
-			maxSize := ternary.If(len(data) > (len(tableFields)-1), len(tableFields)-1, len(data))
+				currentTableName = tableMetas[filepath].Name
+				fields := array.Map(headers, func(h string, i int) string {
+					if opt.UseColumnNumAsName {
+						return fmt.Sprintf("col_%d", i+1)
+					}
+					name := slugifyColumnName(h)
+					if name == "" || len(name) > maxColumnNameLength {
+						log.Warningf("column name [%s] is invalid (empty or too long), use col_%d instead", extracter.Sanitize(h), i+1)
+						return fmt.Sprintf("col_%d", i+1)
+					}
 
-			placeholders := strings.Join(array.Repeat("?", maxSize), ",")
-			fields := strings.Join(tableFields[0:maxSize+1], ",")
+					if !unicode.IsLetter(rune(name[0])) {
+						log.Warningf("column name [%s] is invalid, use col_%d instead", extracter.Sanitize(h), i+1)
+						name = fmt.Sprintf("col_%d", i+1)
+					}
 
-			insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%d, %s);", tableName, fields, index, placeholders)
+					return name
+				})
 
-			if _, err := db.Exec(insertSQL, array.Map(data, func(d string, i int) any { return d })...); err != nil {
-				return fmt.Errorf("insert data failed: %w", err)
-			}
+				currentTableFields = append([]string{memoryTableIDField}, fields...)
+				createSQL := fmt.Sprintf(
+					"CREATE TABLE %s (%s int PRIMARY KEY NOT NULL, %s);",
+					currentTableName,
+					memoryTableIDField,
+					strings.Join(fields, ","),
+				)
 
-			return nil
-		},
-	)
+				if _, err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s;", currentTableName)); err != nil {
+					return fmt.Errorf("drop table %s failed: %w", currentTableName, err)
+				}
 
-	return array.DistinctBy(tables, func(item Table) string { return item.Name }), err
+				if _, err := db.Exec(createSQL); err != nil {
+					return fmt.Errorf("create table %s failed: %w", currentTableName, err)
+				}
+
+				return addTableMeta(db, filepath, currentTableName, tableMetas[filepath].Hash, currentTableFields, headers)
+			},
+			func(filepath string, id string, data []string) error {
+				if opt.ShowTables && opt.TempDS == ":memory:" {
+					return nil
+				}
+
+				defer func() {
+					recordIndex++
+					bar.Add(1)
+				}()
+
+				maxSize := ternary.If(len(data) > (len(currentTableFields)-1), len(currentTableFields)-1, len(data))
+
+				placeholders := strings.Join(array.Repeat("?", maxSize), ",")
+				fields := strings.Join(currentTableFields[0:maxSize+1], ",")
+
+				insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%d, %s);", currentTableName, fields, recordIndex, placeholders)
+
+				if _, err := db.Exec(insertSQL, array.Map(data, func(d string, i int) any { return d })...); err != nil {
+					return fmt.Errorf("insert data failed: %w", err)
+				}
+
+				return nil
+			},
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	tables, err := queryMetas(db)
+	if err != nil {
+		return nil, err
+	}
+
+	return array.DistinctBy(tables, func(item Table) string { return item.Name }), nil
+}
+
+// addTableMeta add table meta to database
+func addTableMeta(db *sql.DB, filepath string, tableName string, hash string, currentTableFields []string, headers []string) error {
+	if _, err := db.Exec("DELETE FROM meta WHERE filename = ?", filepath); err != nil {
+		return fmt.Errorf("delete meta for %s failed: %w", tableName, err)
+	}
+
+	if _, err := db.Exec(
+		"INSERT INTO meta (id, filename, hash, name, columns, original_columns, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		must.Must(queryMaxMetaID(db))+1,
+		filepath,
+		hash,
+		tableName,
+		strings.Join(currentTableFields, ","),
+		strings.Join(headers, ","),
+		time.Now().Format("2006-01-02 15:04:05"),
+	); err != nil {
+		return fmt.Errorf("insert meta for %s failed: %w", tableName, err)
+	}
+
+	return nil
 }
 
 func slugifyColumnName(name string) string {
