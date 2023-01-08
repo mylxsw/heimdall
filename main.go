@@ -82,6 +82,13 @@ func main() {
 			Flags:     commands.BuildConvertFlags(),
 		},
 		{
+			Name:      "split",
+			Usage:     "split a large xlsx/csv to multiple files ",
+			UsageText: `heimdall split --file data.csv`,
+			Action:    commands.SplitCommand,
+			Flags:     commands.BuildSplitFlags(),
+		},
+		{
 			Name:  "version",
 			Usage: "show version",
 			Action: func(c *cli.Context) error {

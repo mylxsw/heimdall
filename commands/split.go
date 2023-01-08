@@ -14,7 +14,6 @@ import (
 	"github.com/mylxsw/go-utils/array"
 	"github.com/mylxsw/go-utils/maps"
 	"github.com/mylxsw/go-utils/must"
-	"github.com/mylxsw/go-utils/str"
 	"github.com/mylxsw/go-utils/ternary"
 	"github.com/mylxsw/heimdall/extracter"
 	"github.com/mylxsw/heimdall/query"
@@ -29,14 +28,12 @@ type SplitOption struct {
 	Slient      bool
 	Debug       bool
 
-	Format                  string
-	Output                  string
-	NoHeader                bool
-	XLSXMaxRow              int
-	TargetTableForSQLFormat string
-
-	Includes []string
-	Excludes []string
+	Format       string
+	Output       string
+	NoHeader     bool
+	XLSXMaxRow   int
+	PerfileLimit int
+	HeaderLine   int
 }
 
 func BuildSplitFlags() []cli.Flag {
@@ -47,37 +44,25 @@ func BuildSplitFlags() []cli.Flag {
 		&cli.StringFlag{Name: "output", Aliases: []string{"o"}, Value: "", Usage: "write output to a file, default output directly to STDOUT"},
 		&cli.BoolFlag{Name: "no-header", Aliases: []string{"n"}, Value: false, Usage: "do not write table header"},
 		&cli.IntFlag{Name: "xlsx-max-row", Value: 1048576, Usage: "the maximum number of rows per sheet in an Excel file, including the row where the header is located"},
-		&cli.StringFlag{Name: "table", Value: "", Usage: "when the format is sql, specify the table name"},
 		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log"},
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
-		&cli.StringSliceFlag{Name: "include", Aliases: []string{"I"}, Usage: "include fields, if set, only these fields will be output, this flag can be specified multiple times"},
-		&cli.StringSliceFlag{Name: "exclude", Aliases: []string{"E"}, Usage: "exclude fields, if set, these fields will be ignored, this flag can be specified multiple times"},
+		&cli.IntFlag{Name: "perfile-limit", Value: 10000, Usage: "the maximum number of rows per file"},
+		&cli.IntFlag{Name: "header-line", Value: 1, Usage: "the line number of header"},
 	}
 }
 
 func resolveSplitOption(c *cli.Context) SplitOption {
-	includes := c.StringSlice("include")
-	excludes := c.StringSlice("exclude")
-	if len(includes) > 0 && len(excludes) > 0 {
-		log.WithFields(log.Fields{
-			"includes": includes,
-			"excludes": excludes,
-		}).Warning("includes and excludes are both set, excludes will be ignored")
-	}
-
 	return SplitOption{
-		InputFile:               c.String("input"),
-		CSVSepertor:             rune(c.String("csv-sepertor")[0]),
-		Format:                  c.String("format"),
-		Output:                  c.String("output"),
-		NoHeader:                c.Bool("no-header"),
-		XLSXMaxRow:              c.Int("xlsx-max-row"),
-		TargetTableForSQLFormat: c.String("table"),
-		Slient:                  c.Bool("slient"),
-		Debug:                   c.Bool("debug"),
-
-		Includes: includes,
-		Excludes: ternary.If(len(includes) > 0, []string{}, excludes),
+		InputFile:    c.String("input"),
+		CSVSepertor:  rune(c.String("csv-sepertor")[0]),
+		Format:       c.String("format"),
+		Output:       c.String("output"),
+		NoHeader:     c.Bool("no-header"),
+		XLSXMaxRow:   c.Int("xlsx-max-row"),
+		Slient:       c.Bool("slient"),
+		Debug:        c.Bool("debug"),
+		PerfileLimit: c.Int("perfile-limit"),
+		HeaderLine:   c.Int("header-line"),
 	}
 }
 
@@ -103,10 +88,6 @@ func SplitCommand(c *cli.Context) error {
 		return fmt.Errorf("input file (--file) is required")
 	}
 
-	if opt.Format == "sql" && opt.TargetTableForSQLFormat == "" {
-		return fmt.Errorf("when the format is sql, the table name (--table) is required")
-	}
-
 	walker := reader.CreateFileWalker(opt.InputFile, opt.CSVSepertor, false, false)
 	if walker == nil {
 		return fmt.Errorf("no file avaiable: only support csv or xlsx files")
@@ -117,16 +98,6 @@ func SplitCommand(c *cli.Context) error {
 	if err := walker(
 		func(filepath string, headers []string) error {
 			cols = array.Map(headers, func(header string, _ int) extracter.Column {
-				if len(opt.Includes) > 0 {
-					if !str.InIgnoreCase(header, opt.Includes) {
-						return extracter.Column{}
-					}
-				} else if len(opt.Excludes) > 0 {
-					if str.InIgnoreCase(header, opt.Excludes) {
-						return extracter.Column{}
-					}
-				}
-
 				return extracter.Column{Name: header, Type: extracter.ColumnTypeVarchar, ScanType: reflect.TypeOf("")}
 			})
 			return nil
@@ -146,7 +117,7 @@ func SplitCommand(c *cli.Context) error {
 	}
 
 	cols = array.Filter(cols, func(col extracter.Column, _ int) bool { return col.Name != "" })
-	res, err := render.Render(opt.Format, false, cols, kvs, "", opt.TargetTableForSQLFormat)
+	res, err := render.Render(opt.Format, false, cols, kvs, "", "")
 	if err != nil {
 		return err
 	}
