@@ -15,7 +15,10 @@ require (
 require github.com/thedatashed/xlsxreader v1.2.2
 
 require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/testify v1.7.4 // indirect
 	golang.org/x/term v0.4.0 // indirect
 )
 

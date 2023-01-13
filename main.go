@@ -83,8 +83,8 @@ func main() {
 		},
 		{
 			Name:      "split",
-			Usage:     "split a large xlsx/csv to multiple files ",
-			UsageText: `heimdall split --file data.csv`,
+			Usage:     "split a large Excel file into multiple small files, each containing a specified number of rows at most",
+			UsageText: `heimdall split --file data.xlsx --perfile-limit 1000 --header-row-num 2`,
 			Action:    commands.SplitCommand,
 			Flags:     commands.BuildSplitFlags(),
 		},
