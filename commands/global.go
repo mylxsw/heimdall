@@ -43,7 +43,7 @@ func BuildGlobalFlags() []cli.Flag {
 		&cli.StringFlag{Name: "user", Aliases: []string{"u"}, Value: "root", Usage: "MySQL user"},
 		&cli.StringFlag{Name: "password", Aliases: []string{"p"}, Value: "", Usage: "MySQL password"},
 		&cli.StringFlag{Name: "database", Aliases: []string{"d"}, Value: "", Usage: "MySQL database"},
-		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "debug mode"},
 		&cli.DurationFlag{Name: "connect-timeout", Value: 3 * time.Second, Usage: "database connect timeout"},
 		&cli.BoolFlag{Name: "beta", Usage: "enable beta feature, may be unstable, use at your own risk"},
 	}

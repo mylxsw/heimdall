@@ -14,6 +14,7 @@ Heimdall is a database tools specially designed for MySQL. Using it, you can dir
 - **export** (aka **query**) SQL query results to various file formats
 - **fly** (aka **query-file**) query data from input file using sql directly
 - **convert** convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql
+- **split** split a large Excel file into multiple small files, each containing a specified number of rows at most 
 
 ### import/load
 
@@ -120,6 +121,22 @@ The following command line options are supported：
 - **--debug, -D** Debug mode (default: false)
 - **--include value**, **-I value** *[ --include value, -I value ]* include fields, if set, only these fields will be output, this flag can be specified multiple times
 - **--exclude value**, **-E value** *[ --exclude value, -E value ]* exclude fields, if set, these fields will be ignored, this flag can be specified multiple times
+
+### split
+
+Using **split** command, you can split a large Excel file into multiple small files, each containing a specified number of rows at most.
+
+```bash
+heimdall split --file data.xlsx --perfile-limit 1000 --header-row-num 2
+```
+
+The following command line options are supported：
+
+- **--file value**, **-i value**, **--input value** input excel file path, currently only support xlsx format
+- **--slient** do not print warning log (default: false)
+- **--debug**, **-D** debug mode (default: false)
+- **--perfile-limit value**, **-p value** the maximum number of records per file (default: 1000)
+- **--header-row-num value**, **-r value** table header row maximum row number (default: 1)
 
 ## Examples
 

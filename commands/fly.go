@@ -59,7 +59,7 @@ func BuildFlyFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "show-tables", Value: false, Usage: "show all tables in the database"},
 		&cli.StringFlag{Name: "temp-ds", Value: ":memory:", Usage: "the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html"},
 		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log"},
-		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
+		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "debug mode"},
 		&cli.BoolFlag{Name: "beta", Usage: "enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk"},
 	}
 }
