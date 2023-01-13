@@ -45,6 +45,7 @@ func BuildGlobalFlags() []cli.Flag {
 		&cli.StringFlag{Name: "database", Aliases: []string{"d"}, Value: "", Usage: "MySQL database"},
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
 		&cli.DurationFlag{Name: "connect-timeout", Value: 3 * time.Second, Usage: "database connect timeout"},
+		&cli.BoolFlag{Name: "beta", Usage: "enable beta feature, may be unstable, use at your own risk"},
 	}
 }
 
@@ -55,6 +56,7 @@ type GlobalOption struct {
 	Password       string
 	Database       string
 	Debug          bool
+	Beta           bool
 	ConnectTimeout time.Duration
 }
 
@@ -77,6 +79,7 @@ func resolveGlobalOption(c *cli.Context) GlobalOption {
 		Database:       c.String("database"),
 		Debug:          c.Bool("debug"),
 		ConnectTimeout: c.Duration("connect-timeout"),
+		Beta:           c.Bool("beta"),
 	}
 }
 

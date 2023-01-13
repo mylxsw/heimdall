@@ -41,6 +41,7 @@ type FlyOption struct {
 	UseColumnNumAsName bool
 	ShowTables         bool
 	TempDS             string
+	Beta               bool
 }
 
 func BuildFlyFlags() []cli.Flag {
@@ -59,6 +60,7 @@ func BuildFlyFlags() []cli.Flag {
 		&cli.StringFlag{Name: "temp-ds", Value: ":memory:", Usage: "the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html"},
 		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log"},
 		&cli.BoolFlag{Name: "debug", Aliases: []string{"D"}, Value: false, Usage: "Debug mode"},
+		&cli.BoolFlag{Name: "beta", Usage: "enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk"},
 	}
 }
 
@@ -85,6 +87,7 @@ func resolveFlyOption(c *cli.Context) FlyOption {
 		TempDS:                  c.String("temp-ds"),
 		Slient:                  c.Bool("slient"),
 		Debug:                   c.Bool("debug"),
+		Beta:                    c.Bool("beta"),
 	}
 }
 
@@ -295,7 +298,7 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 		walker := reader.MergeWalkers(array.Map(
 			inputFiles,
 			func(t Table, _ int) reader.FileWalker {
-				return reader.CreateFileWalker(t.Filename, opt.CSVSepertor, opt.ShowTables && opt.TempDS == ":memory:", opt.ShowTables)
+				return reader.CreateFileWalker(t.Filename, opt.CSVSepertor, opt.ShowTables && opt.TempDS == ":memory:", opt.Beta || opt.ShowTables)
 			})...,
 		)
 		if walker == nil {
