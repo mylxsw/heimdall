@@ -137,6 +137,9 @@ func FlyCommand(c *cli.Context) error {
 	)
 	defer w.Close()
 
+	bar := NewProgressbar(!opt.Slient, "processing, be patient ...")
+	defer bar.Clear()
+
 	_, err = handler(opt.SQL, nil, opt.Format, w, opt.NoHeader, nil)
 
 	return err
