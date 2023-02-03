@@ -47,10 +47,8 @@ func (p *Progressbar) Clear() {
 
 func (p *Progressbar) Reset(max int, desc string) {
 	if p.ProgressBar != nil {
-		p.ProgressBar.Reset()
-		p.ProgressBar.Clear()
-		p.ProgressBar.ChangeMax(max)
-		p.ProgressBar.Describe(desc)
+		p.ProgressBar.Close()
+		p.ProgressBar = progressbar.Default(int64(max), desc)
 	}
 }
 

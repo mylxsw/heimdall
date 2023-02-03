@@ -11,6 +11,9 @@ import (
 
 // SplitExcelByColumn 按照指定的列来拆分 Excel 文件
 func SplitExcelByColumn(slient bool, src string, headerRowEndNum int, columnIndex string) error {
+	logger := NewLogger()
+	defer logger.Flush()
+
 	column, err := excelize.ColumnNameToNumber(columnIndex)
 	if err != nil {
 		return fmt.Errorf("invalid column-index: %w", err)
@@ -26,9 +29,6 @@ func SplitExcelByColumn(slient bool, src string, headerRowEndNum int, columnInde
 	defer srcFile.Close()
 
 	prg.Reset(-1, "loading ...")
-
-	logger := NewLogger()
-	defer logger.Flush()
 
 	for i, sheet := range srcFile.GetSheetList() {
 		rows, err := srcFile.GetRows(sheet)

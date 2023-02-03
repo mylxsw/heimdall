@@ -1,6 +1,9 @@
 package commands
 
-import "github.com/mylxsw/asteria/log"
+import (
+	"github.com/mylxsw/asteria/level"
+	"github.com/mylxsw/asteria/log"
+)
 
 type Logger struct {
 	Events []string
@@ -15,6 +18,7 @@ func (lo *Logger) Add(event string) {
 }
 
 func (lo *Logger) Flush() {
+	log.GetDefaultConfig().LogWriter.Write(level.Info, "", "\n")
 	for _, evt := range lo.Events {
 		log.Infof(evt)
 	}
