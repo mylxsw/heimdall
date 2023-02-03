@@ -111,7 +111,7 @@ func copyExcelHeaders(srcFile *excelize.File, destFile *excelize.File, sheet str
 			}
 
 			if err := destFile.MergeCell(sheet, cell.GetStartAxis(), cell.GetEndAxis()); err != nil {
-				panic(fmt.Errorf("merge cell for %s failed: %v", sheet, err))
+				log.Warningf("merge cell for %s failed: %v", sheet, err)
 			}
 		}
 	}()
