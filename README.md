@@ -3,25 +3,25 @@
 
 ![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=mariadb&logoColor=white) ![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=for-the-badge&logo=mysql&logoColor=white) ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white) 
 
+[English Version](./README.en.md)
 
-Heimdall is a database tools specially designed for MySQL. Using it, you can directly import xlsx or csv file to database or export SQL query results to various file formats, convert xlsx/csv to other formats, query xlsx/csv file using sql. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/SQL/text, etc.
+Heimdall 是一款对 Excel 文件执行导入、导出、直接 SQL 查询和格式转换的工具。当前支持直接写 SQL 对 Excel 文件进行查询和导出，将 MySQL 数据库中的数据导出为 json、yaml、markdown、csv、xlsx、html、sql 等多种格式的文件，导入 xlsx 或者 csv 文件到 MySQL 数据库以及 xlsx、csv 文件的格式转换，文件拆分等功能。
 
-## Command Line Options
+## 命令行选项
 
-**heimdall** support below commands
+**heimdall** 支持下列命令
 
-- **fly** (aka **query-file**) query data from input file using sql directly
-- **import** (aka **load**) data from xlsx or csv file to database table
-- **export** (aka **query**) SQL query results to various file formats
-- **convert** convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql
-- **split** split a large Excel file into multiple small files, each containing a specified number of rows at most 
-
+- **fly** (或者 **query-file**) 使用 SQL 直接对 xlsx、csv 文件进行查询并导出为 json、yaml、markdown、csv、xlsx、html、sql 等多种格式的文件
+- **import** (或者 **load**) 将 xlsx、csv 文件中的数据导入到 MySQL 数据库
+- **export** (或者 **query**) 将 MySQL 中的数据，按照 SQL 的查询结果导出 json、yaml、markdown、csv、xlsx、html、sql 等多种格式的文件
+- **convert** 将 xlsx、csv 文件转换为其它格式如 json、yaml、markdown、csv、xlsx、html、sql 等
+- **split** 将一个比较大的 xlsx 文件拆分为多个文件，当前支持按照行数、按照某一列的值、按照 Sheet 进行拆分
 
 ### fly/query-file
 
-Using **fly/query-file** command, you can query data from input file using sql directly.
+使用 **fly/query-file** 命令，可以直接对输入的 xlsx、csv 文件写 SQL 进行查询和过滤处理，并且导出为 json、yaml、markdown、csv、xlsx、html、sql 等多种格式的文件。
 
-Each input file is used as a table, and the naming format is **table_[serial number]**, starting from the first file, table_0, table_1, table_2 and so on.
+每一个输入（`--file`）的文件都会作为一个数据库表，表名命名格式为 **table_序号**，序号从第一个文件开始，按照 `table_0`，`table_1`，`table_2` 以此类推。
 
 ```bash
 heimdall fly --file data.csv --file data2.csv \
@@ -29,27 +29,27 @@ heimdall fly --file data.csv --file data2.csv \
     -f table
 ```
 
-The following command line options are supported：
+支持下面这些命令行选项：
 
-- **--sql value**, **-s value**, **--query value** SQL statement(if not set, read from STDIN, end with ';')
-- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, you can use the form TABLE:FILE to specify the table name corresponding to the file, this flag can be specified multiple times for importing multiple files at the same time
-- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
-- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
-- **--output value**, **-o value** write output to a file, default output directly to STDOUT
-- **--no-header**, **-n** do not write table header (default: false)
-- **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
-- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
-- **--table value** when the format is sql, specify the table name
-- **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
-- **--show-tables** show all tables in the database (default: false)
-- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html (default: ":memory:")
-- **--slient** do not print warning log (default: false)
-- **--debug**, **-D** Debug mode (default: false)
-- **--beta** enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk
+- **--sql value**, **-s value**, **--query value** SQL 语句 (如果没有指定，则会从标准输入 STDIN 中读取，直到遇到';'结束)
+- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* 要查询的 xlsx 或者 csv 文件路径，可以使用 `TABLE:FILE` 的形式来为文件指定表名，该选项可以指定多次，用于一次对多个文件进行连表查询
+- **--csv-sepertor value** csv 文件分隔符 (默认值: ",")
+- **--format value**, **-f value** 输出格式，支持 csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (默认值: "table")
+- **--output value**, **-o value** 输出路径，默认直接输出到标准输出 STDOUT
+- **--no-header**, **-n** 不要输出表头
+- **--query-timeout value**, **-t value** 查询超时时间，当指定 `stream` 选项时，该选项无效 (默认值: 2m0s)
+- **--xlsx-max-row value** 输出格式为 xlsx 时，指定每个 Sheet 中最大的行数（包含表头），超过该值时会自动拆分到多个 Sheet (默认值: 1048576)
+- **--table value** 输出格式为 sql 时，指定 sql 语句中的表名
+- **--use-column-num** 使用列编号作为列名，从 1 开始，如 col_1, col_2...
+- **--show-tables** 查看当前文件对应的所有表和字段
+- **--temp-ds value** 临时数据库的 URI，默认使用内存数据库，可以指定文件来为多次查询加速，例如 file:data.db?cache=shared, 更多选项查看: https://www.sqlite.org/c3ref/open.html (默认值: ":memory:")
+- **--slient** 不要输出警告日志
+- **--debug**, **-D** 启用调试模式
+- **--beta** 允许 beta 特性，当指定该选项时，大型 xlsx 文件的加载速度会有大幅度提升，目前该功能可能会存在不稳定的因素，请谨慎使用
 
 ### import/load
 
-Using **import/load** command, you can import data from xlsx or csv file to a table.
+使用 **import/load** 命令，可以将 xlsx、csv 文件导入到 MySQL 表中。
 
 ```bash
 heimdall import --tx --database example --table users \
@@ -58,95 +58,93 @@ heimdall import --tx --database example --table users \
     --field 年龄:age
 ```
 
-The following command line options are supported：
+支持下面这些命令行选项：
 
-- **--host value**, **-H value** MySQL host (default: "127.0.0.1")
-- **--port value**, **-P value** MySQL port (default: 3306)
-- **--user value**, **-u value** MySQL user (default: "root")
-- **--password value**, **-p value** MySQL password
-- **--database value**, **-d value** MySQL database
-- **--connect-timeout value** database connect timeout (default: 3s)
-- **--debug**, **-D** Debug mode (default: false)
-- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, this flag can be specified multiple times for importing multiple files at the same time
-- **--table value**, **-t value** target table name
-- **--field value**, **-f value** *[ --field value, -f value ]* field map, eg: excel_field:db_field, this flag can be specified multiple times
-- **--include value**, **-I value** *[ --include value, -I value ]* include fields, if set, only these fields will be imported, this flag can be specified multiple times
-- **--exclude value**, **-E value** *[ --exclude value, -E value ]* exclude fields, if set, these fields will be ignored, this flag can be specified multiple times
-- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
-- **--tx**, **-T** import data using transaction, all success or all failure, only work with InnoDB or other engines that support transaction (default: false)
-- **--dry-run** perform import tests to verify correctness of imported files, but do not commit transactions, only work with InnoDB or other engines that support transaction (default: false)
-- **--help**, **-h** show help (default: false)
+- **--host value**, **-H value** MySQL 主机地址 (default: "127.0.0.1")
+- **--port value**, **-P value** MySQL 端口 (default: 3306)
+- **--user value**, **-u value** MySQL 用户名 (default: "root")
+- **--password value**, **-p value** MySQL 密码
+- **--database value**, **-d value** MySQL 数据库
+- **--connect-timeout value** 数据库连接超时时间 (default: 3s)
+- **--debug**, **-D** 启用调试模式 (default: false)
+- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* 输入文件路径，支持 xlsx、csv，该选项可以指定多次，用于同时导入多个文件
+- **--table value**, **-t value** 要导入的表名称
+- **--field value**, **-f value** *[ --field value, -f value ]* 字段关系，如: excel_field:db_field, 该选项可以指定多次
+- **--include value**, **-I value** *[ --include value, -I value ]* 包含字段白名单，如果指定，则只有白名单中的字段将会被导入，该选项可以指定多次
+- **--exclude value**, **-E value** *[ --exclude value, -E value ]* 排除字段，如果指定，这里的字段将会被忽略，该选项可以指定多次
+- **--csv-sepertor value** csv 文件分隔符 (默认值: ",")
+- **--tx**, **-T** 启用事务支持，所有文件的导入全部成功或者全部失败，只有支持事务的数据存储引擎支持，如 InnoDB 等
+- **--dry-run** 执行导入测试以验证，只有支持事务的存储引擎支持
 
 ### export/query
 
-Using **export/query** command, you can export SQL query results to various file formats. Currently, it supports JSON/YAML/Markdown/CSV/XLSX/HTML/text, etc. 
+使用 **export/query** 命令，可以写一个 SQL 来查询 MySQL 数据库中的数据，将查询结果导出到 json、yaml、markdown、csv、xlsx、html、sql 等多种格式的文件。
 
 ```bash
 heimdall export --database example --format json --sql 'select * from users'
 ```
 
-The following command line options are supported：
+支持下面这些命令行选项：
 
-- **--host value**, **-H value** MySQL host (default: "127.0.0.1")
-- **--port value**, **-P value** MySQL port (default: 3306)
-- **--user value**, **-u value** MySQL user (default: "root")
-- **--password value**, **-p value** MySQL password
-- **--database value**, **-d value** MySQL database
-- **--connect-timeout value** database connect timeout (default: 3s)
-- **--debug**, **-D** Debug mode (default: false)
-- **--sql value**, **-s value** SQL statement
-- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "csv")
-- **--output value**, **-o value** write output to a file, default output directly to STDOUT
-- **--streaming**, **-S** whether to use streaming output, if using streaming output, it will not wait for the query to complete, but output line by line during the query process. The output format only supports csv/xlsx/json/plain/sql (default: false)
-- **--no-header**, **-n** do not write table header (default: false)
-- **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
-- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
-- **--table value** when the format is sql, specify the table name
-- **--help**, **-h** show help (default: false)
+- **--host value**, **-H value** MySQL 主机地址 (默认值: "127.0.0.1")
+- **--port value**, **-P value** MySQL 端口 (默认值: 3306)
+- **--user value**, **-u value** MySQL 用户 (默认值: "root")
+- **--password value**, **-p value** MySQL 密码
+- **--database value**, **-d value** MySQL 数据库
+- **--connect-timeout value** 数据库连接超时时间 (默认值: 3s)
+- **--debug**, **-D** 启用调试模式
+- **--sql value**, **-s value** SQL 查询语句
+- **--format value**, **-f value** 输出格式，支持 csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (默认值: "csv")
+- **--output value**, **-o value** 输出路径，默认直接输出到标准输出 STDOUT
+- **--streaming**, **-S** 是否使用流式输出，如果使用该选项，数据将会在查询过程中一行一行的写入到输出文件，使用该选项可以显著降低内存占用和数据库的查询负担。使用该选项时，输出格式只支持 csv、xlsx、json、plain、sql
+- **--no-header**, **-n** 不要输出表头 
+- **--query-timeout value**, **-t value** 查询超时时间，当指定 stream 选项时，该选项无效 (默认值: 2m0s)
+- **--xlsx-max-row value**  输出格式为 xlsx 时，指定每个 Sheet 中最大的行数（包含表头），超过该值时会自动拆分到多个 Sheet (默认值: 1048576)
+- **--table value** 输出格式为 sql 时，指定 sql 语句中的表名
 
 ### convert
 
-Using **convert** command, you can convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql.
+使用 **convert** 命令，可以将 xlsx、csv 文件转换为 json、yaml、markdown、csv、xlsx、html、sql 等格式。
 
 ```bash
 heimdall convert --file data.csv --format json --include id --include name --include updated_at
 ```
 
-The following command line options are supported：
+支持下面这些命令行选项：
 
-- **--file value**, **-i value**, **--input value** input excel or csv file path
-- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
-- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
-- **--output value**, **-o value** write output to a file, default output directly to STDOUT
-- **--no-header, -n** do not write table header (default: false)
-- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
-- **--table value** when the format is sql, specify the table name
-- **--slient** do not print warning log (default: false)
-- **--debug, -D** Debug mode (default: false)
-- **--include value**, **-I value** *[ --include value, -I value ]* include fields, if set, only these fields will be output, this flag can be specified multiple times
-- **--exclude value**, **-E value** *[ --exclude value, -E value ]* exclude fields, if set, these fields will be ignored, this flag can be specified multiple times
+- **--file value**, **-i value**, **--input value** 要转换格式的 xlsx 或者 csv 文件路径
+- **--csv-sepertor value** csv 文件分隔符 (默认值: ",")
+- **--format value**, **-f value** 输出格式，支持 csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (默认值: "table")
+- **--output value**, **-o value** 输出路径，默认直接输出到标准输出 STDOUT
+- **--no-header, -n** 不要输出表头
+- **--xlsx-max-row value** 输出格式为 xlsx 时，指定每个 Sheet 中最大的行数（包含表头），超过该值时会自动拆分到多个 Sheet (默认值: 1048576)
+- **--table value** 输出格式为 sql 时，指定 sql 语句中的表名
+- **--slient** 不要输出警告日志
+- **--debug, -D** 启用调试模式
+- **--include value**, **-I value** *[ --include value, -I value ]* 包含字段白名单，如果指定，则只有白名单中的字段将会输出，该选项可以指定多次
+- **--exclude value**, **-E value** *[ --exclude value, -E value ]* 排除字段，如果指定，这里的字段将会被忽略，该选项可以指定多次
 
 ### split
 
-Using **split** command, you can split a large Excel file into multiple small files, each containing a specified number of rows at most.
+使用 **split** 命令，可以将一个比较大的 xlsx 文件拆分为多个小文件，支持按照行数、指定的列值以及 Sheet 进行拆分。
 
 ```bash
 heimdall split --file data.xlsx --perfile-limit 1000 --header-row-num 2
 ```
 
-The following command line options are supported：
+支持下面这些命令行选项：
 
-- **--file value**, **-i value**, **--input value** input excel file path, currently only support xlsx format
-- **--slient** do not print warning log (default: false)
-- **--debug**, **-D** debug mode (default: false)
-- **--perfile-limit value**, **-p value** the maximum number of records per file, only valid when mode=row (default: 1000)
-- **--header-row-num value**, **-r value** table header row maximum row number, only valid when mode=row or mode=column (default: 1)
-- **--mode value**, **-m value** split method: row, column, sheet (default: "row")
-- **--column-index value**, **-c value** specifies the index of the column to split, such as 'A', 'AA', only valid when mode=column
+- **--file value**, **-i value**, **--input value** 要拆分的 xlsx 文件路径，只支持 xlsx 文件
+- **--slient** 不要输出警告信息
+- **--debug**, **-D** 启用调试模式
+- **--perfile-limit value**, **-p value** 每个文件中包含的最大行数，当 mode 为 row 时有效 (默认值: 1000)
+- **--header-row-num value**, **-r value** 表格中表头行数，只有 mode 为 row 和 column 时有效 (默认值: 1)
+- **--mode value**, **-m value** 文件拆分方式: row, column, sheet (默认值: "row")
+- **--column-index value**, **-c value** 指定要按照哪一列的值进行拆分，如 'A', 'AA', 只在 mode 为 column 时有效
 
-## Examples
+## 示例
 
-Import a xlsx file to database table 
+将一个 xlsx 文件导入到数据库 `example` 的 `people` 表中。
 
 ```bash
 heimdall import --host 127.0.0.1 --port 3306 --database example --user root --password root \
@@ -157,7 +155,7 @@ heimdall import --host 127.0.0.1 --port 3306 --database example --user root --pa
     --file ~/Downloads/data.xlsx
 ```
 
-Export new businesses in the last 30 days to an Excel file
+对数据库 `example` 执行 SQL，查询出创建时间为 30 天内的企业客户列表，按照 id 倒序排列，导出为 xlsx 文件。
 
 ```bash
 heimdall export --database example --host 127.0.0.1 --user root --password root \
@@ -167,34 +165,34 @@ heimdall export --database example --host 127.0.0.1 --user root --password root 
       --output 最近30天新增企业列表.xlsx
 ```
 
-Compare two Excel files containing population data, traverse the person information in file-1.csv in file-2.xlsx according to the ID number, find the existing person, and output the information of these person
+比较两个包含人员信息的文件，遍历文件 `file-0.csv`，对于其中的每一行数据，取其中的 `身份证号码` 字段，在 `file-1.xlsx` 文件中查找是否存在，如果存在则将该条数据输出到一个新的 xlsx 文件。
 
 ```bash
 heimdall fly --beta \
-    -i ./file-1.csv \
-    -i ./file-2.xlsx  \
+    -i ./file-0.csv \
+    -i ./file-1.xlsx  \
     --sql "select xingming as '姓名', shenfenzhenghaoma as '身份证号码', shengri as '生日', xingbie as '性别', dizhi as '地址', lianxidianhua as '联系电话' from table_0 where table_0.shenfenzhenghaoma NOT IN (select IDCARDNO from table_1)" \
     --format xlsx \
-    --output diff.xlsx
+    --output result.xlsx
 ```
 
-The exported data is deduplicated according to the ID number, and only one piece of data with the same ID number is kept
+将 xlsx 文件中的数据，按照`身份证号码`这一列进行去重，只保留其中一条数据，导出为新的 `xlsx` 文件。
 
 ```bash
 heimdall fly --beta \
-    -i ./diff.xlsx \
+    -i ./data.xlsx \
     --sql "select xingming as '姓名', shenfenzhenghaoma as '身份证号码', shengri as '生日', xingbie as '性别', dizhi as '地址', lianxidianhua as '联系电话' from table_0 where __rowid IN (SELECT max(__rowid) FROM table_0 GROUP BY shenfenzhenghaoma)" \
     --format xlsx \
-    --output diff-no-repeat.xlsx
+    --output result.xlsx
 ```
 
-Split the Excel file into multiple Excel files according to the dimension of the first column A
+将一个 xlsx 文件以列 A 的值进行拆分
 
 ```bash
 heimdall split -i ./data.xlsx -m column -c A
 ```
 
-Split an Excel file into multiple files with up to 1000 rows of data each
+将一个 xlsx 文件拆分为每个文件 1000 条数据的多个文件
 
 ```bash
 heimdall split -m row --file data.xlsx --perfile-limit 1000 --header-row-num 2
