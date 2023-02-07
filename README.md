@@ -77,6 +77,8 @@ The following command line options are supported：
 
 Using **fly/query-file** command, you can query data from input file using sql directly.
 
+Each input file is used as a table, and the naming format is **table_[serial number]**, starting from the first file, table_0, table_1, table_2 and so on.
+
 ```bash
 heimdall fly --file data.csv --file data2.csv \
     --sql "SELECT table_0.id 'ID', table_0.name '名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.id = table_1.ref_id WHERE table_1.deleted_at = '' GROUP BY table_0.id ORDER BY count(*) DESC LIMIT 10" \
@@ -99,6 +101,7 @@ The following command line options are supported：
 - **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html (default: ":memory:")
 - **--slient** do not print warning log (default: false)
 - **--debug**, **-D** Debug mode (default: false)
+- **--beta** enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk
 
 ### convert
 
@@ -135,8 +138,10 @@ The following command line options are supported：
 - **--file value**, **-i value**, **--input value** input excel file path, currently only support xlsx format
 - **--slient** do not print warning log (default: false)
 - **--debug**, **-D** debug mode (default: false)
-- **--perfile-limit value**, **-p value** the maximum number of records per file (default: 1000)
-- **--header-row-num value**, **-r value** table header row maximum row number (default: 1)
+- **--perfile-limit value**, **-p value** the maximum number of records per file, only valid when mode=row (default: 1000)
+- **--header-row-num value**, **-r value** table header row maximum row number, only valid when mode=row or mode=column (default: 1)
+- **--mode value**, **-m value** split method: row, column, sheet (default: "row")
+- **--column-index value**, **-c value** specifies the index of the column to split, such as 'A', 'AA', only valid when mode=column
 
 ## Examples
 
@@ -159,4 +164,37 @@ heimdall export --database example --host 127.0.0.1 --user root --password root 
       --streaming \
       --format xlsx \
       --output 最近30天新增企业列表.xlsx
+```
+
+Compare two Excel files containing population data, traverse the person information in file-1.csv in file-2.xlsx according to the ID number, find the existing person, and output the information of these person
+
+```bash
+heimdall fly --beta \
+    -i ./file-1.csv \
+    -i ./file-2.xlsx  \
+    --sql "select xingming as '姓名', shenfenzhenghaoma as '身份证号码', shengri as '生日', xingbie as '性别', dizhi as '地址', lianxidianhua as '联系电话' from table_0 where table_0.shenfenzhenghaoma NOT IN (select IDCARDNO from table_1)" \
+    --format xlsx \
+    --output diff.xlsx
+```
+
+The exported data is deduplicated according to the ID number, and only one piece of data with the same ID number is kept
+
+```bash
+heimdall fly --beta \
+    -i ./diff.xlsx \
+    --sql "select xingming as '姓名', shenfenzhenghaoma as '身份证号码', shengri as '生日', xingbie as '性别', dizhi as '地址', lianxidianhua as '联系电话' from table_0 where __rowid IN (SELECT max(__rowid) FROM table_0 GROUP BY shenfenzhenghaoma)" \
+    --format xlsx \
+    --output diff-no-repeat.xlsx
+```
+
+Split the Excel file into multiple Excel files according to the dimension of the first column A
+
+```bash
+heimdall split -i ./data.xlsx -m column -c A
+```
+
+Split an Excel file into multiple files with up to 1000 rows of data each
+
+```bash
+heimdall split -m row --file data.xlsx --perfile-limit 1000 --header-row-num 2
 ```
