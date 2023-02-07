@@ -10,11 +10,42 @@ Heimdall is a database tools specially designed for MySQL. Using it, you can dir
 
 **heimdall** support below commands
 
+- **fly** (aka **query-file**) query data from input file using sql directly
 - **import** (aka **load**) data from xlsx or csv file to database table
 - **export** (aka **query**) SQL query results to various file formats
-- **fly** (aka **query-file**) query data from input file using sql directly
 - **convert** convert data from xlsx/csv to other formats: csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql
 - **split** split a large Excel file into multiple small files, each containing a specified number of rows at most 
+
+
+### fly/query-file
+
+Using **fly/query-file** command, you can query data from input file using sql directly.
+
+Each input file is used as a table, and the naming format is **table_[serial number]**, starting from the first file, table_0, table_1, table_2 and so on.
+
+```bash
+heimdall fly --file data.csv --file data2.csv \
+    --sql "SELECT table_0.id 'ID', table_0.name '名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.id = table_1.ref_id WHERE table_1.deleted_at = '' GROUP BY table_0.id ORDER BY count(*) DESC LIMIT 10" \
+    -f table
+```
+
+The following command line options are supported：
+
+- **--sql value**, **-s value**, **--query value** SQL statement(if not set, read from STDIN, end with ';')
+- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, you can use the form TABLE:FILE to specify the table name corresponding to the file, this flag can be specified multiple times for importing multiple files at the same time
+- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
+- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
+- **--output value**, **-o value** write output to a file, default output directly to STDOUT
+- **--no-header**, **-n** do not write table header (default: false)
+- **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
+- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
+- **--table value** when the format is sql, specify the table name
+- **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
+- **--show-tables** show all tables in the database (default: false)
+- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html (default: ":memory:")
+- **--slient** do not print warning log (default: false)
+- **--debug**, **-D** Debug mode (default: false)
+- **--beta** enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk
 
 ### import/load
 
@@ -72,36 +103,6 @@ The following command line options are supported：
 - **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
 - **--table value** when the format is sql, specify the table name
 - **--help**, **-h** show help (default: false)
-
-### fly/query-file
-
-Using **fly/query-file** command, you can query data from input file using sql directly.
-
-Each input file is used as a table, and the naming format is **table_[serial number]**, starting from the first file, table_0, table_1, table_2 and so on.
-
-```bash
-heimdall fly --file data.csv --file data2.csv \
-    --sql "SELECT table_0.id 'ID', table_0.name '名称', table_0.created_at '创建时间', count(*) as '字段数量' FROM table_0 LEFT JOIN table_1 ON table_0.id = table_1.ref_id WHERE table_1.deleted_at = '' GROUP BY table_0.id ORDER BY count(*) DESC LIMIT 10" \
-    -f table
-```
-
-The following command line options are supported：
-
-- **--sql value**, **-s value**, **--query value** SQL statement(if not set, read from STDIN, end with ';')
-- **--file value**, **-i value**, **--input value** *[ --file value, -i value, --input value ]* input excel or csv file path, you can use the form TABLE:FILE to specify the table name corresponding to the file, this flag can be specified multiple times for importing multiple files at the same time
-- **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
-- **--format value**, **-f value** output format, support csv, json, yaml, xml, table, html, markdown, xlsx, plain, sql (default: "table")
-- **--output value**, **-o value** write output to a file, default output directly to STDOUT
-- **--no-header**, **-n** do not write table header (default: false)
-- **--query-timeout value**, **-t value** query timeout, when the stream option is specified, this option is invalid (default: 2m0s)
-- **--xlsx-max-row value** the maximum number of rows per sheet in an Excel file, including the row where the header is located (default: 1048576)
-- **--table value** when the format is sql, specify the table name
-- **--use-column-num** use column number as column name, start from 1, for example: col_1, col_2... (default: false)
-- **--show-tables** show all tables in the database (default: false)
-- **--temp-ds value** the temporary database uri, such as file:data.db?cache=shared, more options: https://www.sqlite.org/c3ref/open.html (default: ":memory:")
-- **--slient** do not print warning log (default: false)
-- **--debug**, **-D** Debug mode (default: false)
-- **--beta** enable beta feature, when this flag is set, the loading performance for large excel file will be improved, may be unstable, use at your own risk
 
 ### convert
 
