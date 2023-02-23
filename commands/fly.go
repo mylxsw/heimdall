@@ -321,22 +321,8 @@ func createMemoryDatabaseForFly(opt FlyOption, db *sql.DB) ([]Table, error) {
 				bar.Add(1)
 
 				currentTableName = tableMetas[filepath].Name
-				fields := array.Map(headers, func(h string, i int) string {
-					if opt.UseColumnNumAsName {
-						return fmt.Sprintf("col_%d", i+1)
-					}
-					name := slugifyColumnName(h)
-					if name == "" || len(name) > maxColumnNameLength {
-						log.Warningf("column name [%s] is invalid (empty or too long), use col_%d instead", extracter.Sanitize(h), i+1)
-						return fmt.Sprintf("col_%d", i+1)
-					}
-
-					if !unicode.IsLetter(rune(name[0])) {
-						log.Warningf("column name [%s] is invalid, use col_%d instead", extracter.Sanitize(h), i+1)
-						name = fmt.Sprintf("col_%d", i+1)
-					}
-
-					return name
+				fields := array.Map(createDBFieldsFromHeaders(headers, opt.UseColumnNumAsName), func(h DatabaseField, i int) string {
+					return h.Field
 				})
 
 				currentTableFields = append([]string{memoryTableIDField}, fields...)
@@ -428,4 +414,42 @@ func slugifyColumnName(name string) string {
 
 	p := strings.Join(pinyin.LazyPinyin(name, arg), "")
 	return strings.ReplaceAll(p, " ", "_")
+}
+
+func createDBFieldsFromHeaders(headers []string, useColumnNumAsName bool) []DatabaseField {
+	return array.Map(headers, func(h string, i int) DatabaseField {
+		if useColumnNumAsName {
+			return DatabaseField{
+				Field: fmt.Sprintf("col_%d", i+1),
+				Name:  h,
+				Index: i,
+			}
+		}
+		name := slugifyColumnName(h)
+		if name == "" || len(name) > maxColumnNameLength {
+			log.Warningf("column name [%s] is invalid (empty or too long), use col_%d instead", extracter.Sanitize(h), i+1)
+			return DatabaseField{
+				Field: fmt.Sprintf("col_%d", i+1),
+				Name:  h,
+				Index: i,
+			}
+		}
+
+		if !unicode.IsLetter(rune(name[0])) {
+			log.Warningf("column name [%s] is invalid, use col_%d instead", extracter.Sanitize(h), i+1)
+			name = fmt.Sprintf("col_%d", i+1)
+		}
+
+		return DatabaseField{
+			Field: name,
+			Name:  h,
+			Index: i,
+		}
+	})
+}
+
+type DatabaseField struct {
+	Index int
+	Field string
+	Name  string
 }
