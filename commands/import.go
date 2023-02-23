@@ -244,6 +244,8 @@ func importData(tx Tx, table string, fieldMap map[string]string, fileWalker read
 					} else {
 						args = append(args, nil)
 					}
+				} else {
+					args = append(args, nil)
 				}
 			}
 
