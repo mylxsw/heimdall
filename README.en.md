@@ -78,7 +78,7 @@ The following command line options are supported：
 - **--create-table** automatically create table structure
 - **--use-column-num** Use column numbers as column names, starting from 1, such as col_1, col_2...
 - **--with-ts** When creating the table structure, automatically add the created_at field to identify the time of import
-- **--table-structure-format value** When this option is specified, the table structure information will be output after the import is complete, supporting `table`, `json`, `yaml` three formats
+- **--table-structure-format value** When this option is specified, the table structure information will be output after the import is complete, supporting `table`, `json`, `yaml`, `markdown`, `html`, `csv`, `xml` 
 
 ### export/query
 

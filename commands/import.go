@@ -90,7 +90,7 @@ func BuildImportFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "create-table", Usage: "create table automatically if not exists"},
 		&cli.BoolFlag{Name: "use-column-num", Value: false, Usage: "use column number as column name, start from 1, for example: col_1, col_2..."},
 		&cli.BoolFlag{Name: "with-ts", Usage: "add created_at column to table"},
-		&cli.StringFlag{Name: "table-structure-format", Usage: "if set, the table structure will be output to the stdout with the specified format, support: json, yaml, table"},
+		&cli.StringFlag{Name: "table-structure-format", Usage: "if set, the table structure will be output to the stdout with the specified format, support: json, yaml, table, markdown, html, csv, xml"},
 		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log or progressbar"},
 	}...)
 }
@@ -209,6 +209,7 @@ func printTableStructure(db *sql.DB, targetDB string, targetTable string, format
 		return
 	}
 
+	fmt.Printf("\nTABLE STRUCTURE:\n\n")
 	fmt.Println(buf.String())
 
 	maxFieldLength := strconv.Itoa(array.Reduce(rows.DataSets, func(val int, s map[string]interface{}) int {
@@ -224,7 +225,7 @@ func printTableStructure(db *sql.DB, targetDB string, targetTable string, format
 		return fmt.Sprintf("\t`%s`", row["COLUMN_NAME"])
 	})
 
-	fmt.Printf("QUERY SQL:\n\nSELECT %s \nFROM %s\n\n", strings.Join(fields, ",\n"), targetTable)
+	fmt.Printf("\nQUERY SQL:\n\nSELECT %s \nFROM %s\n\n", strings.Join(fields, ",\n"), targetTable)
 }
 
 func resolveFieldIndexs(header []string, fieldsMap map[string]string) map[string]int {
