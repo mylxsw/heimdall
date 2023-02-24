@@ -114,9 +114,9 @@ func FlyCommand(c *cli.Context) error {
 		return fmt.Errorf("--sql or -s is required")
 	}
 
-	db, err := sql.Open("sqlite3", opt.TempDS)
+	db, err := sql.Open("sqlite", opt.TempDS)
 	if err != nil {
-		return fmt.Errorf("create sqlite3 database failed: %w", err)
+		return fmt.Errorf("create sqlite database failed: %w", err)
 	}
 	defer db.Close()
 

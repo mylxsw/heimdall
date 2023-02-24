@@ -14,7 +14,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var (

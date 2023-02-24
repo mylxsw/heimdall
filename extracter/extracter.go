@@ -213,6 +213,10 @@ func Extract(rows *sql.Rows) (*Rows, error) {
 }
 
 func reflectColumnType(tp *sql.ColumnType) reflect.Type {
+	if tp.ScanType() == nil {
+		return reflect.TypeOf(sql.NullString{})
+	}
+
 	switch tp.ScanType().Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflect.TypeOf(sql.NullInt64{})
