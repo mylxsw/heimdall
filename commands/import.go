@@ -34,6 +34,7 @@ type ImportOption struct {
 	Beta                 bool
 	WithCreateTime       bool
 	TableStructureFormat string
+	Slient               bool
 }
 
 // resolveImportOption resolve import option
@@ -71,6 +72,7 @@ func resolveImportOption(c *cli.Context) ImportOption {
 		Beta:                 c.Bool("beta"),
 		WithCreateTime:       c.Bool("with-ts"),
 		TableStructureFormat: c.String("table-structure-format"),
+		Slient:               c.Bool("slient"),
 	}
 }
 
@@ -89,6 +91,7 @@ func BuildImportFlags() []cli.Flag {
 		&cli.BoolFlag{Name: "use-column-num", Value: false, Usage: "use column number as column name, start from 1, for example: col_1, col_2..."},
 		&cli.BoolFlag{Name: "with-ts", Usage: "add created_at column to table"},
 		&cli.StringFlag{Name: "table-structure-format", Usage: "if set, the table structure will be output to the stdout with the specified format, support: json, yaml, table"},
+		&cli.BoolFlag{Name: "slient", Value: false, Usage: "do not print warning log or progressbar"},
 	}...)
 }
 
@@ -134,13 +137,18 @@ func ImportCommand(c *cli.Context) error {
 			return err
 		}
 
-		if err := importData(opt, tx, walker); err != nil {
+		res, allowFields, err := importData(opt, tx, walker)
+		if err != nil {
 			defer log.Errorf("import data failed, all changes have been rolled back: %v", err)
 			return tx.Rollback()
 		}
 
 		if opt.TableStructureFormat != "" {
-			printTableStructure(db, globalOpt.Database, opt.Table, opt.TableStructureFormat)
+			printTableStructure(db, globalOpt.Database, opt.Table, opt.TableStructureFormat, allowFields)
+		}
+
+		if !opt.Slient {
+			log.With(res).Infof("import finished")
 		}
 
 		if opt.DryRun {
@@ -156,19 +164,24 @@ func ImportCommand(c *cli.Context) error {
 		return nil
 	}
 
-	if err := importData(opt, db, walker); err != nil {
+	res, allowFields, err := importData(opt, db, walker)
+	if err != nil {
 		return err
 	}
 
 	if opt.TableStructureFormat != "" {
-		printTableStructure(db, globalOpt.Database, opt.Table, opt.TableStructureFormat)
+		printTableStructure(db, globalOpt.Database, opt.Table, opt.TableStructureFormat, allowFields)
+	}
+
+	if !opt.Slient {
+		log.With(res).Infof("import finished")
 	}
 
 	return nil
 }
 
 // printTableStructure print table structure
-func printTableStructure(db *sql.DB, targetDB string, targetTable string, format string) {
+func printTableStructure(db *sql.DB, targetDB string, targetTable string, format string, allowFields []DatabaseField) {
 	rows, err := query.QueryDB(
 		db,
 		"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = ? AND table_schema = ?",
@@ -180,6 +193,16 @@ func printTableStructure(db *sql.DB, targetDB string, targetTable string, format
 		return
 	}
 
+	fieldsMap := array.BuildMap(allowFields, func(field DatabaseField, _ int) (string, string) { return field.Field, field.Name })
+	rows.DataSets = array.Map(rows.DataSets, func(row map[string]interface{}, _ int) map[string]interface{} {
+		mapV, ok := fieldsMap[row["COLUMN_NAME"].(string)]
+		if ok && mapV != "" {
+			row["COLUMN_COMMENT"] = mapV
+		}
+
+		return row
+	})
+
 	buf, err := render.Render(format, false, rows.Columns, rows.DataSets, "", "")
 	if err != nil {
 		log.Errorf("render table structure failed: %v", err)
@@ -188,15 +211,20 @@ func printTableStructure(db *sql.DB, targetDB string, targetTable string, format
 
 	fmt.Println(buf.String())
 
+	maxFieldLength := strconv.Itoa(array.Reduce(rows.DataSets, func(val int, s map[string]interface{}) int {
+		return ternary.If(val > len(s["COLUMN_NAME"].(string)), val, len(s["COLUMN_NAME"].(string)))
+	}, 0) + 2)
+
 	fields := array.Map(rows.DataSets, func(row map[string]interface{}, _ int) string {
-		if row["COLUMN_COMMENT"] != "" {
-			return fmt.Sprintf("%s AS %s", row["COLUMN_NAME"], strconv.Quote(row["COLUMN_COMMENT"].(string)))
+		mapV, ok := fieldsMap[row["COLUMN_NAME"].(string)]
+		if ok && mapV != "" {
+			return fmt.Sprintf("\t%-"+maxFieldLength+"s AS %s", "`"+row["COLUMN_NAME"].(string)+"`", strconv.Quote(mapV))
 		}
 
-		return row["COLUMN_NAME"].(string)
+		return fmt.Sprintf("\t`%s`", row["COLUMN_NAME"])
 	})
 
-	log.Infof("QUERY SQL: SELECT %s FROM %s\n", strings.Join(fields, ", "), targetTable)
+	fmt.Printf("QUERY SQL:\n\nSELECT %s \nFROM %s\n\n", strings.Join(fields, ",\n"), targetTable)
 }
 
 func resolveFieldIndexs(header []string, fieldsMap map[string]string) map[string]int {
@@ -225,24 +253,29 @@ type Tx interface {
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
+type ImportResult struct {
+	SuccessCount int `json:"success"`
+	FailedCount  int `json:"failed"`
+}
+
 // importData import excel file
-func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err error) {
+func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (res ImportResult, allowFields []DatabaseField, err error) {
 	defer func() {
 		if err1 := recover(); err1 != nil {
 			err = fmt.Errorf("panic: %v", err1)
 		}
 	}()
 
-	log.With(opt.FieldsMap).Debug("fields map")
+	bar := NewProgressbar(!opt.Slient, "importing ...")
+	defer bar.Close()
 
 	var sqlTemplate string
 	var fields []string
 	var fieldIndexs map[string]int
 
-	var successCount, failedCount int
 	if err := fileWalker(
 		func(filepath string, headers []string) error {
-			dbFields := resolveAllowFields(
+			allowFields = resolveAllowFields(
 				array.Map(createDBFieldsFromHeaders(headers, opt.UseColumnNumAsName), func(field DatabaseField, _ int) DatabaseField {
 					mapV, ok := opt.FieldsMap[field.Name]
 					if ok {
@@ -256,7 +289,7 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 			)
 
 			if opt.CreateTable {
-				fieldLines := array.Map(dbFields, func(f DatabaseField, _ int) string {
+				fieldLines := array.Map(allowFields, func(f DatabaseField, _ int) string {
 					return fmt.Sprintf("%s TEXT NULL DEFAULT NULL COMMENT %s", f.Field, strconv.Quote(f.Name))
 				})
 
@@ -265,7 +298,7 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 				}
 
 				createSQL := fmt.Sprintf(
-					"CREATE TABLE %s (id int PRIMARY KEY AUTO_INCREMENT, %s);",
+					"CREATE TABLE IF NOT EXISTS %s (id int PRIMARY KEY AUTO_INCREMENT, %s);",
 					opt.Table,
 					strings.Join(fieldLines, ","),
 				)
@@ -275,7 +308,7 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 				}
 			}
 
-			fieldsMap := array.BuildMap(dbFields, func(f DatabaseField, _ int) (string, string) {
+			fieldsMap := array.BuildMap(allowFields, func(f DatabaseField, _ int) (string, string) {
 				return f.Name, f.Field
 			})
 
@@ -288,6 +321,10 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 			return nil
 		},
 		func(filepath string, id string, row []string) error {
+			defer func() {
+				bar.Add(1)
+			}()
+
 			var args []interface{}
 			for _, fieldName := range fields {
 				if fieldIndexs[fieldName] < len(row) {
@@ -303,12 +340,14 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 			}
 
 			if len(array.Filter(args, func(arg interface{}, _ int) bool { return arg != nil })) == 0 {
-				log.WithFields(log.Fields{"file": filepath}).Warningf("skip empty row: %s", id)
+				if !opt.Slient {
+					log.WithFields(log.Fields{"file": filepath}).Warningf("skip empty row: %s", id)
+				}
 				return nil
 			}
 
 			if _, err := tx.Exec(sqlTemplate, args...); err != nil {
-				failedCount++
+				res.FailedCount++
 				log.WithFields(log.Fields{
 					"sql":  sqlTemplate,
 					"args": args,
@@ -318,24 +357,19 @@ func importData(opt ImportOption, tx Tx, fileWalker reader.FileWalker) (err erro
 				return err
 			}
 
-			successCount++
+			res.SuccessCount++
 			log.WithFields(log.Fields{
 				"args": args,
 				"line": id,
 				"file": filepath,
-			}).Infof("insert success %s", id)
+			}).Debugf("insert success %s", id)
 			return nil
 		},
 	); err != nil {
-		return err
+		return res, allowFields, err
 	}
 
-	log.WithFields(log.Fields{
-		"success": successCount,
-		"fail":    failedCount,
-	}).Infof("import success")
-
-	return nil
+	return res, allowFields, nil
 }
 
 func resolveAllowFields(fields []DatabaseField, includes []string, excludes []string) []DatabaseField {

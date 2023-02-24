@@ -75,7 +75,10 @@ The following command line options are supported：
 - **--csv-sepertor value** csv file sepertor, default is ',' (default: ",")
 - **--tx**, **-T** import data using transaction, all success or all failure, only work with InnoDB or other engines that support transaction (default: false)
 - **--dry-run** perform import tests to verify correctness of imported files, but do not commit transactions, only work with InnoDB or other engines that support transaction (default: false)
-- **--help**, **-h** show help (default: false)
+- **--create-table** automatically create table structure
+- **--use-column-num** Use column numbers as column names, starting from 1, such as col_1, col_2...
+- **--with-ts** When creating the table structure, automatically add the created_at field to identify the time of import
+- **--table-structure-format value** When this option is specified, the table structure information will be output after the import is complete, supporting `table`, `json`, `yaml` three formats
 
 ### export/query
 

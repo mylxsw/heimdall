@@ -75,6 +75,10 @@ heimdall import --tx --database example --table users \
 - **--csv-sepertor value** csv 文件分隔符 (默认值: ",")
 - **--tx**, **-T** 启用事务支持，所有文件的导入全部成功或者全部失败，只有支持事务的数据存储引擎支持，如 InnoDB 等
 - **--dry-run** 执行导入测试以验证，只有支持事务的存储引擎支持
+- **--create-table** 自动创建表结构
+- **--use-column-num** 使用列编号作为列名，从 1 开始，如 col_1, col_2...
+- **--with-ts** 在创建表结构时，自动添加 created_at 字段，用于标识导入的时间
+- **--table-structure-format value** 指定该选项时，会在导入完成后输出表结构信息，支持 `table`，`json`，`yaml` 三种格式
 
 ### export/query
 
