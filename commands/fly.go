@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -140,6 +141,9 @@ func FlyCommand(c *cli.Context) error {
 	bar := NewProgressbar(!opt.Slient, "processing, be patient ...")
 	defer bar.Clear()
 
+	if opt.Output == "" {
+		w.Write([]byte("\n\n"))
+	}
 	_, err = handler(opt.SQL, nil, opt.Format, w, opt.NoHeader, nil)
 
 	return err
@@ -149,6 +153,8 @@ func showTables(tables []Table, handler func(sqlStr string, args []interface{}, 
 	if _, err := handler("SELECT filename file, name 'table', created_at FROM meta", nil, "table", os.Stdout, false, nil); err != nil {
 		return err
 	}
+
+	columnAlias := make([]string, 0)
 
 	for _, table := range tables {
 		fmt.Printf("\n◇ Table: %s ⇢ %s\n", table.Name, table.Filename)
@@ -168,12 +174,27 @@ func showTables(tables []Table, handler func(sqlStr string, args []interface{}, 
 				if i > 0 {
 					row["original"] = table.OriginalColumns[i-1]
 				}
+
+				colName, _ := row["name"].(string)
+				colOriginalName, _ := row["original"].(string)
+
+				if colName != memoryTableIDField {
+					if colName != colOriginalName && colOriginalName != "" {
+						columnAlias = append(columnAlias, fmt.Sprintf("`%s` AS %s", colName, strconv.Quote(colOriginalName)))
+					} else {
+						columnAlias = append(columnAlias, fmt.Sprintf("`%s`", colName))
+					}
+				}
 			}
 		}
 
 		if _, err := handler(fmt.Sprintf("PRAGMA table_info(%s)", table.Name), nil, "table", os.Stdout, false, dataProcesser); err != nil {
 			return err
 		}
+
+		fmt.Println()
+
+		fmt.Printf("SQL:\tSELECT %s FROM `%s`\n", strings.Join(columnAlias, ", "), table.Name)
 
 		fmt.Println()
 	}
